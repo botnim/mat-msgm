@@ -1,0 +1,310 @@
+#include "mex.h"
+#include "typeGeneralCompact.h"
+#include "MRFEnergy.h"
+#include "HotStart.h"
+
+#include "time.h"
+
+#include <string.h>
+
+/*
+ * A wrapper for general TRW library by Vladimir Kolmogorov.
+ *
+ * Usage: 
+ *   [x e fmsgs] = GenCompact_TRWS_wrapper_mex(UTerm, PTerm_i, PTerm_v, method, itr, [imsgs]);
+ *
+ * Inputs:
+ *  UTerm   - LxN matrix of unary terms (N-number of variables, L-number of labels)
+ *            Each term (col) is a pair [Ei(0), Ei(1), Ei(2), ...].'
+ *  PTerm_i - 3xE matrix of indices into pairwise terms (E=number of pair-wise relations (edges))
+ *            Each term (col) is of the form [i j vi].'
+ *            Where i,j are the indices of the variables (first variable is of index 1, last one is N)
+ *		      and vi is index into PTerm_v
+ *  PTerm_v - (L^2)x|vi| matrix of the different col-stack matrices V. (1 based index)
+ *  method  - TRWS ('t'), or BP ('b')
+ *  itr     - number of iterations
+ *  imsgs   - "hot start messages" (2+L)xE matrix, each column [i j mij(0), mij(1)...]
+ *			  an initial messages from i to j. (optional)
+ *
+ * Outputs:
+ *	x	  - double L vectr of final labels
+ *	e	  -	triplet [energy lowerBound nIter]
+ *  fmsgs - final state messages (same format as imsgs). 
+ *
+ * compiling using:
+ * >> mex -O -largeArrayDims MRFEnergy.cpp ordering.cpp treeProbabilities.cpp minimize.cpp GenCompact_TRWS_wrapper_mex.cpp -output GenCompact_TRWS_wrapper_mex
+ */
+
+inline
+void null_fcn(...) {}
+
+#ifdef DEBUG
+#define DEBUGmexPrintf mexPrintf
+#else
+#define DEBUGmexPrintf null_fcn  
+#endif
+
+// inputs
+enum {
+    iU  = 0,
+    iPI,
+	iPV,
+    iM,
+    iT,
+	iS,
+    nI
+};
+
+// outputs
+enum {
+    oX = 0,
+    oE,
+	oS, // output state
+    nO
+};
+
+void my_err_function(char* msg) {
+    mexErrMsgTxt(msg);
+}
+
+
+template <typename T, typename REAL>
+void GenCompact_TRWS_wrapper(int nout, mxArray* pout[], int nin, const mxArray* pin[]);
+
+
+void
+mexFunction(
+    int nout,
+    mxArray* pout[],
+    int nin,
+    const mxArray* pin[])
+{
+    if (nin <= iT || nin > nI)
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:nin","Expecting %d inputs", nI);
+    
+    if (nout == 0)
+        return;
+    if (nout > nO)
+         mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:nout", "Expecting %d outputs", nO);
+    
+    if ( mxIsComplex(pin[iU]) || mxIsSparse(pin[iU]) || !mxIsDouble(pin[iU]) )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:unary_term",
+                "Unary term must be full real matrix");
+    
+	if ( mxIsComplex(pin[iPI]) || mxIsSparse(pin[iPI]) || !mxIsDouble(pin[iPI]) )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:pairwise_term",
+                "Pair-wise index term must be full real matrix");
+    if ( mxIsComplex(pin[iPV]) || mxIsSparse(pin[iPV]) || !mxIsDouble(pin[iPV]) )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:pairwise_term",
+                "Pair-wise index term must be full real matrix");
+    
+	if ( mxIsComplex(pin[iT]) || mxIsSparse(pin[iT]) || mxGetNumberOfElements(pin[iT])!=1)
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:iterations",
+                "number of iterations must be full real scalar");
+    
+    if ( mxGetClassID(pin[iPV]) != mxGetClassID(pin[iU]) )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:energy_terms",
+                "Both energy terms must be of the same class");
+        
+    mwSize L = mxGetM(pin[iU]);
+    if ( mxGetNumberOfDimensions(pin[iU]) != 2 ||  mxGetM(pin[iU]) != L )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:unary_term_size",
+                "Unary term must be LxN matrix");
+    if ( mxGetNumberOfDimensions(pin[iPI]) != 2 || mxGetM(pin[iPI]) != 3 )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:piarwise_term_size",
+                "pair-wise index term must be 3xE matrix");
+    
+	if ( mxGetNumberOfDimensions(pin[iPV]) != 2 || mxGetM(pin[iPV]) != L*L )
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:piarwise_term_size",
+                "pair-wise V term must be L^2 x |vi| matrix");
+    
+    if (mxGetNumberOfElements(pin[iM])!=1 || mxGetClassID(pin[iM])!=mxCHAR_CLASS)
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:method",
+                "Method must be a char t/b");
+	
+
+    switch (mxGetClassID(pin[iU])) {
+        case mxDOUBLE_CLASS:
+            // only supported class at the moment
+            return GenCompact_TRWS_wrapper<double, double>(nout, pout, nin, pin);
+        case mxINT8_CLASS:
+        case mxCHAR_CLASS:
+//            return GenCompact_TRWS_wrapper<char, int>(nout, pout, nin, pin);
+        case mxSINGLE_CLASS:
+//            return GenCompact_TRWS_wrapper<float, float>(nout, pout, nin, pin);
+        case mxUINT8_CLASS:
+//            return GenCompact_TRWS_wrapper<unsigned char, int>(nout, pout, nin, pin);
+        case mxINT16_CLASS:
+//            return GenCompact_TRWS_wrapper<short, int>(nout, pout, nin, pin);
+        case mxUINT16_CLASS:
+//            return GenCompact_TRWS_wrapper<unsigned short, int>(nout, pout, nin, pin);
+        case mxINT32_CLASS:
+//            return GenCompact_TRWS_wrapper<int, int>(nout, pout, nin, pin);
+        case mxUINT32_CLASS:
+//            return GenCompact_TRWS_wrapper<unsigned int, int>(nout, pout, nin, pin);
+        case mxINT64_CLASS:
+        case mxUINT64_CLASS:
+        default:
+            mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:energy_class",
+                    "Unknown/unsupported class %s",mxGetClassName(pin[iU]));
+    } 
+    return;
+}
+
+template <typename T, typename REAL>
+void GenCompact_TRWS_wrapper(int nout, mxArray* pout[], int nin, const mxArray* pin[])
+{ 
+    
+	MRFEnergy<typeGeneralCompact>* mrf;
+	MRFEnergy<typeGeneralCompact>::NodeId* nodes;
+	MRFEnergy<typeGeneralCompact>::Options options;
+	typeGeneralCompact::REAL energy, lowerBound;
+	unsigned int nIter;
+
+    mwSize N  = mxGetN(pin[iU]); // number of nodes/variables
+    mwSize L  = mxGetM(pin[iU]); // number of labels
+    mwSize E  = mxGetN(pin[iPI]); // number of edges/pairs
+    mwSize nV = mxGetN(pin[iPV]); // number of different V matrices
+
+    T* pU  = (T*)mxGetData(pin[iU]);
+    T* pP  = (T*)mxGetData(pin[iPV]);
+	T* pVi = (T*)mxGetData(pin[iPI]);
+
+    // get method
+    char method = *(char*)mxGetData(pin[iM]);
+    if (method != 't' && method != 'b')
+        mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:unknown_method", "Unknown method %c, should be one of t/b", method);
+
+    // get number of iterations
+    int iterations = static_cast<int>(mxGetScalar(pin[iT]));
+    
+	mrf = new MRFEnergy<typeGeneralCompact>(typeGeneralCompact::GlobalSize(), my_err_function); // construct with an error message function
+	nodes = new MRFEnergy<typeGeneralCompact>::NodeId[N];
+
+	// construct energy
+    // add unary terms
+    for ( mwSize ii=0; ii < N ; ii++ ) {
+        DEBUGmexPrintf("Adding node %d out of %d\n", ii, N);
+        nodes[ii] = mrf->AddNode(typeGeneralCompact::LocalSize(L), 
+                typeGeneralCompact::NodeData(pU+ (L*ii)));
+    }
+
+    DEBUGmexPrintf("\n\nDone adding nodes \n\n");
+    
+	mwSize step = L*L;
+    // add pairwise terms
+    for ( mwSize ii=0; ii < E ; ii++ ) {
+        DEBUGmexPrintf("Adding edge %d out of %d\n", ii, E);
+        int vi = static_cast<int>(pVi[3*ii+2]-1); // conver to zero based index
+		if ( vi >= nV || vi < 0 )
+			mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:v_index", "edge=%d: v index (%d) out of bound", ii+1, vi+1);
+
+        mrf->AddEdge( nodes[ static_cast<mwSize>(pVi[3*ii] - 1) ], 
+                nodes[ static_cast<mwSize>(pVi[3*ii+1] - 1) ],
+                typeGeneralCompact::EdgeData( typeGeneralCompact::GENERAL, pP+(step*vi) ) );
+    }
+
+    DEBUGmexPrintf("\n\nDone adding edges \n\n");
+    
+	if ( nin > iS ) {
+		// we have initial state
+		if ( mxGetClassID(pin[iS]) != mxGetClassID(pin[iU]) ||
+			mxIsSparse(pin[iS]) || 
+			mxGetNumberOfDimensions(pin[iS]) != 2 ||
+			mxGetM(pin[iS]) != (2+L) ||
+			mxGetN(pin[iS]) != mxGetN(pin[iPI]) )
+			mexErrMsgIdAndTxt("GenCompact_TRWS_wrapper_mex:hotStart","wrong size or type for hot start");
+
+
+		// do hot start!
+		MRFEnergy<typeGeneralCompact>::NodeId* mIds = new MRFEnergy<typeGeneralCompact>::NodeId[2*E];
+		double* messages = new double[L*E];
+		double *phs = mxGetPr(pin[iS]);
+
+		for ( unsigned int ei=0; ei < E ; ei++ ) {
+			mIds[ei*2]     = nodes[ static_cast<mwIndex>(phs[ei*(2+L)])-1 ]; // convert from Matlab's 1-index to 0-index
+			mIds[ei*2 + 1] = nodes[ static_cast<mwIndex>(phs[ei*(2+L)+1])-1 ];
+
+			memcpy(messages+ei*L, phs + (2+L)*ei + 2, L*sizeof(double));
+		}
+
+		DEBUGmexPrintf("got hot start\n");
+
+		mrf->HotStart(mIds, messages);
+
+		DEBUGmexPrintf("ready to go\n");
+
+		delete[] mIds;
+		delete[] messages;
+	
+	// } else {
+		// Function below is optional - it may help if, for example, nodes are added in a random order
+		// do not use it with HotStart!! 
+		// mrf->SetAutomaticOrdering();
+	}
+
+	options.m_iterMax = iterations; // maximum number of iterations
+	options.m_eps = 1e-6;
+    if ( method == 't' ) {
+        /////////////////////// TRW-S algorithm //////////////////////
+        
+        nIter = mrf->Minimize_TRW_S(options, lowerBound, energy);
+    } else {
+        //////////////////////// BP algorithm ////////////////////////
+        // mrf->ZeroMessages(); // in general not necessary - it may be faster to start
+        // with messages computed in previous iterations       
+        nIter = mrf->Minimize_BP(options, energy);
+    }
+
+	if (nout > oS || nout == 1) {
+		DEBUGmexPrintf("Dumping current state\n");
+
+		// dump state
+		pout[((nout>oS)?oS:0)] = mxCreateDoubleMatrix(2+L, E, mxREAL);
+		double* ps = mxGetPr(pout[((nout>oS)?oS:0)]);
+
+		int* pids = new int[2*E+2*N];
+		double* pmsgs = new double[L*E+L*N];
+		unsigned int ec = mrf->DumpCurrentState(pids, pmsgs);
+
+		DEBUGmexPrintf("Got ec=%d, E=%d\n", ec, E);
+
+		for ( mwSize ei=0; ei < E ; ei++ ) {
+			ps[ei*(2+L)]   = static_cast<double>(pids[2*ei]+1);
+			ps[ei*(2+L)+1] = static_cast<double>(pids[2*ei+1]+1);
+			memcpy(ps+ei*(2+L)+2, pmsgs+ei*L, L*sizeof(double));
+		}
+		delete[] pids;   
+		delete[] pmsgs;
+
+	}
+
+	if ( nout >= 2 ) {
+		// get the energy
+		energy = mrf->ComputeSolutionAndEnergy();
+
+		// allocate output
+		pout[oX] = mxCreateDoubleMatrix(N, 1, mxREAL);
+		double* pX = mxGetPr(pout[oX]);
+
+		// read solution
+		for ( mwSize ii=0; ii < N ; ii++ ) {
+			pX[ii] = static_cast<double>(mrf->GetSolution(nodes[ii]) + 1); // from 0-based labels to 1-based labels.
+		}
+
+		if ( nout > oE ) {
+			// energy and bound
+			pout[oE] = mxCreateDoubleMatrix(1, 3, mxREAL);
+			double* pe = mxGetPr(pout[oE]);
+
+			pe[0] = energy; // energy
+			pe[1] = lowerBound; // lower bound
+			pe[2] = nIter; // actual number of iterations
+		}
+	}
+	// done
+	delete[] nodes;
+	delete mrf;
+}
+    
+    

@@ -1,0 +1,192 @@
+#include "mex.h"
+#include "typeBinaryFast.h"
+#include "MRFEnergy.h"
+
+#include "time.h"
+/*
+ * A wrapper for binary TRW library by Vladimir Kolmogorov.
+ *
+ * Usage: 
+ *   [x] = Bin_TRWS_wrapper_mex(UTerm, PTerm, method, itr);
+ *
+ * Inputs:
+ *  UTerm - 2xN matrix of unary terms (N-number of variables)
+ *          Each term (col) is a pair [Ei(0), Ei(1)].'
+ *  PTerm - 6xE matrix of pairwise terms (E-number of pair-wise relations (edges))
+ *          Each term (col) is of the form [i j Eij(0,0), Eij(0,1), Eij(1,0), Eij(1,1)].'
+ *          Where i,j are the indices of the variables (first variable is of index 1, last one is N)
+ *  method- TRWS ('t'), or BP ('b')
+ *  itr   - number of iterations
+ *
+ *
+ *
+ *
+ * compiling using:
+ * >> mex -O -largeArrayDims MRFEnergy.cpp ordering.cpp treeProbabilities.cpp minimize.cpp Bin_TRW_wrapper_mex.cpp -output Bin_TRWS_wrapper_mex
+ */
+
+
+// inputs
+enum {
+    iU = 0,
+    iP = 1,
+    iM = 2,
+    iT = 3,
+    nI
+};
+
+// outputs
+enum {
+    oX = 0,
+    nO
+};
+
+void my_err_function(char* msg) {
+    mexErrMsgTxt(msg);
+}
+
+
+template <typename T, typename REAL>
+void Bin_TRWS_wrapper(int nout, mxArray* pout[], int nin, const mxArray* pin[]);
+
+
+void
+mexFunction(
+    int nout,
+    mxArray* pout[],
+    int nin,
+    const mxArray* pin[])
+{
+    if (nin != nI)
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:nin","Expecting %d inputs", nI);
+    
+    if (nout == 0)
+        return;
+    if (nout != nO)
+         mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:nout", "Expecting %d outputs", nO);
+    
+    if ( mxIsComplex(pin[iU]) || mxIsSparse(pin[iU]) )
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:unary_term",
+                "Unary term must be full real matrix");
+    if ( mxIsComplex(pin[iP]) || mxIsSparse(pin[iP]) )
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:pairwise_term",
+                "Pair-wise term must be full real matrix");
+    if ( mxIsComplex(pin[iT]) || mxIsSparse(pin[iT]) || mxGetNumberOfElements(pin[iT])!=1)
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:iterations",
+                "number of iterations must be full real scalar");
+    
+    if ( mxGetClassID(pin[iP]) != mxGetClassID(pin[iU]) )
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:energy_terms",
+                "Both energy terms must be of the same class");
+        
+    if ( mxGetNumberOfDimensions(pin[iU]) != 2 || mxGetM(pin[iU]) != 2 )
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:unary_term_size",
+                "Unary term must be Nx2 matrix");
+    if ( mxGetNumberOfDimensions(pin[iP]) != 2 || mxGetM(pin[iP]) != 6 )
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:piarwise_term_size",
+                "Unary term must be Ex6 matrix");
+    
+    if (mxGetNumberOfElements(pin[iM])!=1 || mxGetClassID(pin[iM])!=mxCHAR_CLASS)
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:method",
+                "Method must be a char q/p/i");
+    
+    switch (mxGetClassID(pin[iU])) {
+        case mxDOUBLE_CLASS:
+            // only supported class at the moment
+            return Bin_TRWS_wrapper<double, double>(nout, pout, nin, pin);
+        case mxINT8_CLASS:
+        case mxCHAR_CLASS:
+//            return Bin_TRWS_wrapper<char, int>(nout, pout, nin, pin);
+        case mxSINGLE_CLASS:
+//            return Bin_TRWS_wrapper<float, float>(nout, pout, nin, pin);
+        case mxUINT8_CLASS:
+//            return Bin_TRWS_wrapper<unsigned char, int>(nout, pout, nin, pin);
+        case mxINT16_CLASS:
+//            return Bin_TRWS_wrapper<short, int>(nout, pout, nin, pin);
+        case mxUINT16_CLASS:
+//            return Bin_TRWS_wrapper<unsigned short, int>(nout, pout, nin, pin);
+        case mxINT32_CLASS:
+//            return Bin_TRWS_wrapper<int, int>(nout, pout, nin, pin);
+        case mxUINT32_CLASS:
+//            return Bin_TRWS_wrapper<unsigned int, int>(nout, pout, nin, pin);
+        case mxINT64_CLASS:
+        case mxUINT64_CLASS:
+        default:
+            mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:energy_class",
+                    "Unknown/unsupported class %s",mxGetClassName(pin[iU]));
+    } 
+    return;
+}
+
+template <typename T, typename REAL>
+void Bin_TRWS_wrapper(int nout, mxArray* pout[], int nin, const mxArray* pin[])
+{ 
+    
+	MRFEnergy<TypeBinaryFast>* mrf;
+	MRFEnergy<TypeBinaryFast>::NodeId* nodes;
+	MRFEnergy<TypeBinaryFast>::Options options;
+	TypeBinaryFast::REAL energy, lowerBound;
+
+    mwSize N = mxGetN(pin[iU]); // number of nodes/variables
+    mwSize E = mxGetN(pin[iP]); // number of edges/pairs
+    
+    T* pU = (T*)mxGetData(pin[iU]);
+    T* pP = (T*)mxGetData(pin[iP]);
+
+    // get method
+    char method = *(char*)mxGetData(pin[iM]);
+    if (method != 't' && method != 'b')
+        mexErrMsgIdAndTxt("Bin_TRWS_wrapper_mex:unknown_method", "Unknown method %c, should be one of t/b", method);
+
+    // get number of iterations
+    int iterations = static_cast<int>(mxGetScalar(pin[iT]));
+    
+	mrf = new MRFEnergy<TypeBinaryFast>(TypeBinaryFast::GlobalSize(), my_err_function); // construct with an error message function
+	nodes = new MRFEnergy<TypeBinaryFast>::NodeId[N];
+
+	// construct energy
+    // add unary terms
+    for ( mwSize ii=0; ii < N ; ii++ ) {
+        nodes[ii] = mrf->AddNode(TypeBinaryFast::LocalSize(), 
+                TypeBinaryFast::NodeData(pU[2*ii], pU[2*ii+1]));
+    }
+
+    // add pairwise terms
+    for ( mwSize ii=0; ii < E ; ii++ ) {
+        mrf->AddEdge( nodes[ static_cast<mwSize>(pP[6*ii] - 1) ], 
+                nodes[ static_cast<mwSize>(pP[6*ii+1] - 1) ],
+                TypeBinaryFast::EdgeData( static_cast<REAL>(pP[6*ii+2]), 
+                    static_cast<REAL>(pP[6*ii+3]), 
+                    static_cast<REAL>(pP[6*ii+4]), 
+                    static_cast<REAL>(pP[6*ii+5]) ) );
+    }
+
+	
+    if ( method == 't' ) {
+        /////////////////////// TRW-S algorithm //////////////////////
+        options.m_iterMax = iterations; // maximum number of iterations
+        mrf->Minimize_TRW_S(options, lowerBound, energy);
+    } else {
+        //////////////////////// BP algorithm ////////////////////////
+        mrf->ZeroMessages(); // in general not necessary - it may be faster to start
+        // with messages computed in previous iterations
+        
+        options.m_iterMax = iterations; // maximum number of iterations
+        mrf->Minimize_BP(options, energy);
+    }
+    
+    // allocate output
+    pout[oX] = mxCreateNumericMatrix(N,1,mxINT32_CLASS, mxREAL);
+    int* pX = (int*)mxGetData(pout[oX]);
+
+	// read solution
+    for ( mwSize ii=0; ii < N ; ii++ ) {
+        pX[ii] = mrf->GetSolution(nodes[ii]);
+    }
+
+	// done
+	delete[] nodes;
+	delete mrf;
+}
+    
+    

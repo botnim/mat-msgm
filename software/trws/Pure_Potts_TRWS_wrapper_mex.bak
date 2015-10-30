@@ -1,0 +1,244 @@
+#include "mex.h"
+#include "typePotts.h"
+#include "MRFEnergy.h"
+
+#include "time.h"
+/*
+ * A wrapper for pure Potts model (only pair-wise) TRWS library by Vladimir Kolmogorov.
+ *
+ * Usage: 
+ *   [x e] = Pure_Potts_TRWS_wrapper_mex(NL, W, method, itr);
+ *
+ * Inputs:
+ *  NL    - scalar, number of labels
+ *  W     - NxN matrix where Eij(li,lj) = wij [li != lj]
+ *  method- TRWS ('t'), or BP ('b')
+ *  itr   - number of iterations
+ *
+ *
+ *
+ *
+ * compiling using:
+ * >> mex -O -largeArrayDims MRFEnergy.cpp ordering.cpp treeProbabilities.cpp minimize.cpp Pure_Potts_TRWS_wrapper_mex.cpp -output Pure_Potts_TRWS_wrapper_mex
+ */
+
+inline
+void null_fcn(...) {}
+
+#ifdef DEBUG
+#define DEBUGmexPrintf mexPrintf
+#else
+#define DEBUGmexPrintf null_fcn  
+#endif
+
+// inputs
+enum {
+    iL = 0,
+    iW = 1,
+    iM = 2,
+    iT = 3,
+    nI
+};
+
+// outputs
+enum {
+    oX = 0,
+	oE,
+    nO
+};
+
+void my_err_function(char* msg) {
+    mexErrMsgTxt(msg);
+}
+
+
+template <typename T, typename REAL>
+void Pure_Potts_TRWS_wrapper(int nout, mxArray* pout[], int nin, const mxArray* pin[]);
+
+
+void
+mexFunction(
+    int nout,
+    mxArray* pout[],
+    int nin,
+    const mxArray* pin[])
+{
+    if (nin != nI)
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:nin","Expecting %d inputs", nI);
+    
+    if (nout == 0)
+        return;
+    if (nout != nO)
+         mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:nout", "Expecting %d outputs", nO);
+    
+    if ( mxIsComplex(pin[iL]) || mxGetNumberOfElements(pin[iL]) != 1 )
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:number of labels",
+                "number of labels must be a scalar");
+    if ( mxIsComplex(pin[iW]) )
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:pairwise_term",
+                "Pair-wise matrix w must be a real matrix");
+    
+    if ( mxIsComplex(pin[iT]) || mxIsSparse(pin[iT]) || mxGetNumberOfElements(pin[iT])!=1)
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:iterations",
+                "number of iterations must be full real scalar");
+    
+    if (mxGetNumberOfElements(pin[iM])!=1 || mxGetClassID(pin[iM])!=mxCHAR_CLASS)
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:method",
+                "Method must be a char t/b");
+    
+   
+    if ( mxGetNumberOfDimensions(pin[iW]) != 2 || mxGetM(pin[iW]) != mxGetN(pin[iW]) )
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:piarwise_term_size",
+                "Pair-wise term must be NxN matrix");
+    
+    
+    switch (mxGetClassID(pin[iW])) {
+        case mxDOUBLE_CLASS:
+            // only supported class at the moment
+            return Pure_Potts_TRWS_wrapper<double, double>(nout, pout, nin, pin);
+        case mxINT8_CLASS:
+        case mxCHAR_CLASS:
+//            return Pure_Potts_TRWS_wrapper<char, int>(nout, pout, nin, pin);
+        case mxSINGLE_CLASS:
+//            return Pure_Potts_TRWS_wrapper<float, float>(nout, pout, nin, pin);
+        case mxUINT8_CLASS:
+//            return Pure_Potts_TRWS_wrapper<unsigned char, int>(nout, pout, nin, pin);
+        case mxINT16_CLASS:
+//            return Pure_Potts_TRWS_wrapper<short, int>(nout, pout, nin, pin);
+        case mxUINT16_CLASS:
+//            return Pure_Potts_TRWS_wrapper<unsigned short, int>(nout, pout, nin, pin);
+        case mxINT32_CLASS:
+//            return Pure_Potts_TRWS_wrapper<int, int>(nout, pout, nin, pin);
+        case mxUINT32_CLASS:
+//            return Pure_Potts_TRWS_wrapper<unsigned int, int>(nout, pout, nin, pin);
+        case mxINT64_CLASS:
+        case mxUINT64_CLASS:
+        default:
+            mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:energy_class",
+                    "Unknown/unsupported class %s",mxGetClassName(pin[iW]));
+    } 
+    return;
+}
+
+template <typename T, typename REAL>
+void Pure_Potts_TRWS_wrapper(int nout, mxArray* pout[], int nin, const mxArray* pin[])
+{ 
+    
+	MRFEnergy<TypePotts>* mrf;
+	MRFEnergy<TypePotts>::NodeId* nodes;
+	MRFEnergy<TypePotts>::Options options;
+	TypePotts::REAL energy, lowerBound;
+	int itr(0);
+
+    mwSize N = mxGetN(pin[iW]); // number of nodes/variables
+    mwSize L = static_cast<int>(mxGetScalar(pin[iL])); // number of labels
+    
+    TypePotts::REAL* pZeroUnary = new TypePotts::REAL[L]; // alocate single space for all zero unary
+  
+  
+    // get method
+    char method = *(char*)mxGetData(pin[iM]);
+    if (method != 't' && method != 'b')
+        mexErrMsgIdAndTxt("Pure_Potts_TRWS_wrapper_mex:unknown_method", "Unknown method %c, should be one of t/b", method);
+
+    // get number of iterations
+    int iterations = static_cast<int>(mxGetScalar(pin[iT]));
+    
+	mrf = new MRFEnergy<TypePotts>(TypePotts::GlobalSize(L), my_err_function); // construct with an error message function
+	nodes = new MRFEnergy<TypePotts>::NodeId[N];
+
+	// construct energy
+    // add unary terms
+    for ( mwSize ii=0; ii < N ; ii++ ) {
+        DEBUGmexPrintf("Adding node %d out of %d\n", ii, N);
+        nodes[ii] = mrf->AddNode(TypePotts::LocalSize(), 
+                TypePotts::NodeData(pZeroUnary));
+    }
+
+    DEBUGmexPrintf("\n\nDone adding nodes \n\n");
+    
+    // get the pair-wise terms from w
+    if ( mxIsSparse(pin[iW]) ) {
+        double* pP = mxGetPr(pin[iW]);
+        mwIndex* pir = mxGetIr(pin[iW]);
+        mwIndex* pjc = mxGetJc(pin[iW]);
+    
+        // get potts terms from sparse matrix
+        for (mwSize col=0; col< N; col++)  {
+            
+            for (mwIndex ri = pjc[col] ; // starting row index
+            ri < pjc[col+1]  ; // stopping row index
+            ri++)  {
+                if ( col > pir[ri] ) {
+                    // only upper triangle entries - PTerm is assumed to be symmetric!
+                    mrf->AddEdge( nodes[ pir[ri] ],
+                            nodes[ col ],
+                            TypePotts::EdgeData( pP[ri] ) );
+                    
+                }
+                // pir[ri] -> current row
+                // col -> current col
+                // pr[ri] -> W[pir[ri], col]
+                
+            }
+        }
+    } else {
+        // get potts terms from full matrix
+        
+        T* pP = (T*)mxGetData(pin[iW]);
+        for ( mwSize col=1; col < N ; col++ ) {
+            for ( mwSize row = 0; row < col; row++ ) {  // upper triangle of w
+                    mrf->AddEdge( nodes[ row ],
+                            nodes[ col ],
+                            TypePotts::EdgeData( pP[row + col*N] ) );                
+            }
+        }
+    }
+    
+    DEBUGmexPrintf("\n\nDone adding edges \n\n");
+    
+    
+	// Function below is optional - it may help if, for example, nodes are added in a random order
+	// mrf->SetAutomaticOrdering();
+	options.m_iterMax = iterations; // maximum number of iterations
+	options.m_eps = 1e-6;
+
+    if ( method == 't' ) {
+        /////////////////////// TRW-S algorithm //////////////////////        
+        itr = mrf->Minimize_TRW_S(options, lowerBound, energy);
+    } else {
+        //////////////////////// BP algorithm ////////////////////////
+        // mrf->ZeroMessages(); // in general not necessary - it may be faster to start
+        // with messages computed in previous iterations       
+        itr = mrf->Minimize_BP(options, energy);
+    }
+    energy = mrf->ComputeSolutionAndEnergy();
+
+    
+	// allocate output
+    pout[oX] = mxCreateDoubleMatrix(N, 1, mxREAL);
+    double* pX = mxGetPr(pout[oX]);
+    
+	// read solution
+    for ( mwSize ii=0; ii < N ; ii++ ) {
+        pX[ii] = static_cast<double>(mrf->GetSolution(nodes[ii]))+1; // from 0-based to 1-based labels
+    }
+    
+    // energy and bound
+    pout[oE] = mxCreateDoubleMatrix(1, 3, mxREAL);
+    double* pe = mxGetPr(pout[oE]);
+    
+    pe[0] = energy; // energy
+    pe[1] = lowerBound; // lower bound
+    pe[2] = itr;
+    
+
+
+
+	// done    
+	delete[] nodes;
+    delete[] pZeroUnary;
+	delete mrf;
+}
+    
+    
