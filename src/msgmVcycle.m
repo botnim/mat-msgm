@@ -20,8 +20,7 @@ function [L, prior, Q] = msgmVcycle(U,E,P,L,prior,gP,fineGraph)
 %   P   -   explicit representation of all pairwise terms, KxKxM matrix.
 %           If the edge connecting vertices (i,j) is indexed by 'k', then
 %           P(li,lj,k) is the cost of assigning label 'li' to 'i' and
-%           'lj' to 'j'. Note that in general P(y,z,:)!=P(z,y,:), i.e.,
-%           the edges are directed.
+%           'lj' to 'j'. Note that in general P(y,z,:)!=P(z,y,:)
 %
 %   L   -   initial labeling of the vertices, Nx1 vector.
 %           For an unlabeled graph, L should be the empty matrix [].
@@ -62,7 +61,7 @@ prior = UpdatePrior(prior,L,gP);
 %
 % score the edges, a preprocessing step
 % for CompCoarseGraph()
-vEdgeList = msgmVariableGrouping(U,E,P,prior,L,gP);      
+vEdgeList = ScoreEdges(U,E,P,prior,L,gP);      
 
 %
 % compute coarse graphical model,
@@ -74,7 +73,8 @@ priorc = [];
 
 %
 % check stopping condition
-% TODO: check if crsRatioThrs is necessary
+% TODO: check if crsRatioThrs is necessary, if not - can bring to first
+% step if V-cycle
 % TODO: set size(Uc,1) <= 2
 if (size(Uc,1)/size(U,1) >= gP.crsRatioThrs) || ...
         (size(Uc,1) <= 500)
@@ -98,7 +98,7 @@ Q.nv = [Q.nv, Qc.nv];
 % interpolate solution
 if not(gP.bPlongCR)
 
-    L = msgmInterpolate(Lc,vCoarse,plongTab);
+    L = Prolong(Lc,vCoarse,plongTab);
 else
 
     [Ucr, Ecr, Pcr, Lcr, vCR2Fine, L] = MakeCRgraph(U,E,P,Lc,vCoarse,plongTab);

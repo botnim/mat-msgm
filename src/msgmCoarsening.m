@@ -32,7 +32,7 @@ K = size(G.u,2);         	% number of labels
 
 
 % intialize coarse labeling assignment
-x = [];
+%x = [];
 
 
 % select a variable grouping
@@ -115,23 +115,6 @@ for iM = 1 : size(vEdgeList,1)
         end
 %         v = v + G.u(ii,:);      % unary term of the new coarse vertex
         
-        % DEBUG DEBUG
-%         mbMin_ = bsxfun(@rdivide,pairwise,v);
-%         mbMin = bsxfun(@ge,mbMin_, gP.noAmbg);
-%         mbMin = mbMin & bsxfun(@le,mbMin_, 1);
-        mbMin = bsxfun(@le,pairwise, v + gP.noAmbg);
-        if any(sum(mbMin,1)>1) && gP.noAmbg
-            % there is ambiguity in prolongation
-            
-%             if any(G.u(ii,sum(mbMin,1) > 1) == min(G.u(ii,:)))
-            if any(abs(v(sum(mbMin,1) > 1) - min(v))) < 0.2
-                % ambguity is linked to probable assigment
-                
-                    continue;   %skip that edge
-            end
-        end
-        % DEBUG DEBUG
-        
         % update index table
         vFine(ii) = cntrV;          % vertex vFine(ii) is the interpolator
                                     % of coarse vertex cntrV
@@ -168,24 +151,7 @@ for iM = 1 : size(vEdgeList,1)
             v(x(ii)) = pairwise(x(jj),x(ii));
             idx(x(ii)) = x(jj);
         end
-        
-        % DEBUG DEBUG
-%         mbMin_ = bsxfun(@rdivide,pairwise,v);
-%         mbMin = bsxfun(@ge,mbMin_, gP.noAmbg);
-%         mbMin = mbMin & bsxfun(@le,mbMin_, 1);
-        mbMin = bsxfun(@le,pairwise, v + gP.noAmbg);
-        if any(sum(mbMin,1)>1) && gP.noAmbg
-            % there is ambiguity in prolongation
-            
-%             if any(G.u(ii,sum(mbMin,1) > 1) == min(G.u(ii,:)))
-            if any(abs(v(sum(mbMin,1) > 1) - min(v))) < 0.2
-                % ambguity is linked to probable assigment
-                
-                    continue;   %skip that edge
-            end
-        end
-        % DEBUG DEBUG
-        
+              
         % update index table
         vFine(jj) = -1 * vFine(ii);     
 

@@ -15,7 +15,6 @@ gP.prUpdate = 'none';       %
 gP.wDegEnt = 1;
 
 
-gP.noAmbg = 0;              % skip edges that result in ambiguity in prolongation
 gP.bPlongCR = true;        % prolonb via Compatible Relaxations
 gP.bEdgeThrs = 0;           % (0 <= val <= 1) keep edges with <=  val of entropy
 gP.bAggMode = 0;            % (0/1) 0 for regular edge contraction

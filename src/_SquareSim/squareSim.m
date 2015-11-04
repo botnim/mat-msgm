@@ -14,9 +14,9 @@
 % the grid size.
 %
 
-GRID_SIZE = 100;    	% 4-connected grid GRID_SIZE by GRID_SIZED
+GRID_SIZE = 2;    	% 4-connected grid GRID_SIZE by GRID_SIZED
 K = 2;              	% number of labels
-numTests = 1;     	% number of tests
+numTests = 100;     	% number of tests
 
 %
 % initialization of some vars for adjacency matrix
@@ -49,8 +49,6 @@ for i = 1 : numTests
 
     rng(i);
     
-    gP = setParams;
-
     U = randn(N,K);
     U = round(U * 1e1) / 1e1;
 
@@ -94,24 +92,38 @@ for i = 1 : numTests
     gP.imSz = [GRID_SIZE, GRID_SIZE];
     gP.relaxType = 'LSA';
     gP.numV = 1;
+    gP.numRelax = 0;
+    gP.bPlongCR = false;
     tic;
-    [Lk, ~, ~] = msgm(U,E,P,[],gP);
-    eMS = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
+
+    [Lk, ~, ~] = msgm_REAL(U,E,P,[],gP);
+    eMS(i) = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
     tMS = toc;
     
-    gP = setParams;
-    gP.imSz = [GRID_SIZE, GRID_SIZE];
-    gP.relaxType = 'LSA';
-    gP.numV = 0;
     tic;
     [Lk, ~, ~] = msgm(U,E,P,[],gP);
-    eSS = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
-    tSS = toc;
+    eBL(i) = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
+    tBL = toc;
+    
+%     gP = setParams;
+%     gP.imSz = [GRID_SIZE, GRID_SIZE];
+%     gP.relaxType = 'LSA';
+%     gP.numV = 0;
+%     gP.bPlongCR = false;
+%     tic;
+%     [Lk, ~, ~] = msgm_REAL(U,E,P,[],gP);
+%     eSS = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
+%     tSS = toc;
 
-    disp(strcat('multiscale energy:  ',num2str(eMS)));
-    disp(strcat('multiscale time:    ',num2str(tMS)));
-    disp(strcat('singlescale energy: ',num2str(eSS)));
-    disp(strcat('singlescale time:   ',num2str(tSS)));
+%     disp('------');
+%     disp(strcat('multiscale energy:  ',num2str(eMS)));
+%     disp(strcat('baseline energy:    ',num2str(eBL)));
+%     disp(strcat('singlescale energy: ',num2str(eSS)));
+%     disp('------');
+%     disp(strcat('multiscale time:    ',num2str(tMS)));
+%     disp(strcat('baseline time:      ',num2str(tBL)));
+%     disp(strcat('singlescale time:   ',num2str(tSS)));
+    
     % ... same but with MQPBO
 %     gP.MQPBO = true;
 %     gP.numRelax = 10;

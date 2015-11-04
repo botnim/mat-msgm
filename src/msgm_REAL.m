@@ -1,8 +1,9 @@
-function [L, e, t, Q] = msgm(U,E,P,L,params)
+function [x, e, t] = msgm_REAL(U,E,P,x,params)
 
 %
 % TODO:
 %   -   consider writing u,adj,p as struct arrays
+%   -   test >1 V-cycles, specifically, where labels are initialized
 % 
 % msgm - main entrypoint to multiscale optimization of graphical models.
 %
@@ -55,10 +56,14 @@ prior = [];
 %
 % Vcycles
 ebest = Inf;
+G.u = U;
+G.adj = E;
+G.p = P;
+G.numLabels = size(G.u,2);
 for i = 1 : params.numV
     
-    [L, prior, Q(i+1)] = msgmVcycle(U,E,P,L,prior,params,true);
-    e = Energy(U,E,P,L); 
+    x = msgmVcycle_REAL(G, x, params);
+    e = Energy(G.u, G.adj, G.p, x); 
     e = round(e * 1e6) / 1e6;
 
 
@@ -78,17 +83,17 @@ end
 %
 % final relaxation of graph
 params.bFineGraph = true;
-if isempty(L)
+if isempty(x)
     % provide initial guess
-    [~, L] = min(U,[],2);
+    [~, x] = min(G.u, [], 2);
 end
-L = RelaxGraph(U,E,P,L,params);
+x = RelaxGraph(G.u, G.adj, G.p, x, params);
 
 
 
 %
 % energy & time
 t = toc;
-e = Energy(U,E,P,L);
+e = Energy(G.u, G.adj, G.p, x);
 
 end
