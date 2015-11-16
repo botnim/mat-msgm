@@ -14,9 +14,9 @@
 % the grid size.
 %
 
-GRID_SIZE = 2;    	% 4-connected grid GRID_SIZE by GRID_SIZED
+GRID_SIZE = 3;    	% 4-connected grid GRID_SIZE by GRID_SIZED
 K = 2;              	% number of labels
-numTests = 100;     	% number of tests
+numTests = 500;     	% number of tests
 
 %
 % initialization of some vars for adjacency matrix
@@ -45,15 +45,17 @@ vEnergy = zeros(numTests,1);
 
 count  = 0;
 eTotal = 0;
+eMS = zeros(numTests,1);
+eBL = zeros(numTests,1);
 for i = 1 : numTests
 
     rng(i);
     
     U = randn(N,K);
-    U = round(U * 1e1) / 1e1;
+    U = round(U, 1);
 
-    P = 2 * randn(K,K,M);
-    P = round(P * 1e1) / 1e1;
+    P = randn(K,K,M);
+    P = round(P, 1);
     
 % %     ig = int32(randi(2,size(U,1),1));
 % %     
@@ -88,20 +90,26 @@ for i = 1 : numTests
     
     
     % find energy for k-label representation
-    gP = setParams;
+    gP = msgmParams;
     gP.imSz = [GRID_SIZE, GRID_SIZE];
-    gP.relaxType = 'LSA';
+    gP.relaxType = 'NONE';
     gP.numV = 1;
-    gP.numRelax = 0;
+    gP.numRelax = 1;
     gP.bPlongCR = false;
     tic;
 
-    [Lk, ~, ~] = msgm_REAL(U,E,P,[],gP);
+    [Lk, ~, ~] = msgm(U,E,P,[],gP);
     eMS(i) = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
     tMS = toc;
     
     tic;
-    [Lk, ~, ~] = msgm(U,E,P,[],gP);
+    gP = setParams;
+    gP.imSz = [GRID_SIZE, GRID_SIZE];
+    gP.relaxType = 'NONE';
+    gP.numV = 1;
+    gP.numRelax = 1;
+    gP.bPlongCR = false;
+    [Lk, ~, ~] = msmrf(U,E,P,[],gP);
     eBL(i) = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
     tBL = toc;
     

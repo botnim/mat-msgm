@@ -1,4 +1,4 @@
-function [vg, mapFineToCoarse] = msgmVariableGrouping(G)
+function [vg, mapFineToCoarse] = msgmVariableGrouping(G, bBin)
 %msgmVariableGrouping select a variable grouping for the coarsening stage
 %
 %   Detailed explanation goes here
@@ -26,7 +26,7 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G)
     % vbInvEdge defines whether the pairwise is stored
     % in G.p as (v1,v2) or as (v2,v1)
     % TODO: scoreEdges only if G.bProcessed = false
-    orderedEdgeList = ScoreEdges(G.u, G.adj, G.p, [], [], []);
+    orderedEdgeList = msgmScoreEdges(G.u, G.adj, G.p, [], [], [], bBin);
     vbInvEdge = (orderedEdgeList < 0);
     orderedEdgeList = abs(orderedEdgeList);
     

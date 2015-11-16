@@ -1,267 +1,173 @@
-function [Uc, Ec, Pc, vCoarse, plongTab] ...
-    = msgmCoarsening(U,E,P,x,vEdgeList,gP)
-
+function [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, x)
+%msgmCoarsening apply coarsening procedure for given variable-grouping
 %
-% CompCoarseGraph(U,E,P,L,vEdgeList,gp) -
-% compute coarse representation of the graphical model by contracting edges
-%
-% OUPUT:
-%
-%   Uc, Ec, Pc  -   unary, adjacency and pairwise of coarse graph
-%
-%   vCoarse     -   mapping from coarse vertices to fine vertices
-%                   see definition below
-%
-%   plongTab    -   prolongation table, [NC]x[K+2] matrix          
-%                   NC - number of coarse vertices
-%                   plongTab(:,1) - fine-index of the interpolant
-%                   plongTab(:,2) - coarse-index of the interpolator
-%                   plongTab(:,2+k) - interpolation rule (1 <= k <= K)
-%                       e.g. if the coarse-vertex 'i' has label 'k' then
-%                       fine-vertex 'j' gets label plongTab(i,j,2+k)
-%
+% output:
 
-G.u = U;
-G.p = P;
-G.adj = E;
-
-
-M = size(G.adj,1);        	% number of edges
-N = size(G.u,1);            % number of variables
-K = size(G.u,2);         	% number of labels
-
-
-% intialize coarse labeling assignment
-%x = [];
-
-
-% select a variable grouping
-
-
-% construct the coarse scale
-% select an interpolation rule and define the coarse potentials
-
-
-vFine = zeros(N,1);         % table for mapping fine vertices to coarse
-                            % vertices; if 'i' is an index of a fine vertex
-                            % then abs(vFine(i)) is its coarse counterpart
-                            % - if - 
-                            % vFine(i) > 0  --> 'i' is interpolator
-                            % vFine(i) < 0  --> 'i' is interpolant
-
-vCoarse = zeros(N,1);       % table for mapping coarse vertices to fine
-                            % vertices; if 'I' is an index of a coarse
-                            % vertex then vCoarse(I) is its corresponding
-                            % fine vertex
-                            
-                            
-plongTab = zeros(N,K+2);    % prolongation table
-                            % plongTab(j,i,vec) mean that the coarse vertex
-                            % indexed by 'i' interpolates fine-vertex 'j'
-                            % according to the interpolation rule of 'vec'
-
-vSkpList = ones(M,1);       % list of skipped edges; edges that were not
-                            % considered in the coarse graph. Need to re-
-                            % iterate over those
-                            
-cntrV = 1;                  % index counter for coarse [V]ertices
-
-Uc = zeros(N,K);
-
-
-%
-% iterate over edge list
-% -- building the coarse unary term
-for iM = 1 : size(vEdgeList,1)
     
-    pp = vEdgeList(iM);     % (signed) index of edge (ii,jj) in G.p
-                            % if pp > 0 then ii is the 'left' vertex in G.p
-                            % if pp < 0 then jj is the 'left' vertex in G.p
-    ii = G.adj(abs(pp),1);      % interpolator of edge iM
-    jj = G.adj(abs(pp),2);      % interpolant of edge iM
-    if (pp < 0)
-        % the direction of interpolation is reversed
-        
-        tmp = ii;
-        ii = jj;
-        jj = tmp;
-    end
-  
-  
-    %
-    % check 'status' of the iM-th edge
-    if (vFine(ii) == 0) && (vFine(jj) == 0)
-        % both endpoints are free, edge can be inserted
-                
-        % find the interpolation assignment by solving:
-        % l_j = argmin(@l) { \phi_{i,j} (l_i,l)  +  \phi_j (l) }
-        % ..prepare the functional above
-        pairwise = squeeze(G.p(:,:,abs(pp)));
-        if (pp > 0)                 % this *if* makes sure that
-            pairwise = pairwise';   % jj is on 1st dim, ii on 2nd dim
-        end
-        pairwise = bsxfun(@plus,pairwise,G.u(jj,:)');
-        % DEBUG DEBUG
-        pairwise = bsxfun(@plus,pairwise,G.u(ii,:));
-        % DEBUG DEBUG
-        [v, idx] = min(pairwise,[],1);
-        
-        
-        if any(x)
-            % labels are initialized, overrule values
-            % in the prolongation table
-            v(x(ii)) = pairwise(x(jj),x(ii));
-            idx(x(ii)) = x(jj);
-        end
-%         v = v + G.u(ii,:);      % unary term of the new coarse vertex
-        
-        % update index table
-        vFine(ii) = cntrV;          % vertex vFine(ii) is the interpolator
-                                    % of coarse vertex cntrV
-        vFine(jj) = -1 * cntrV;     % vertex vFine(jj) is the interpolant
-                                    % of coarse vertex cntrV
-        vCoarse(cntrV) = ii;        % coarse vertex cntrV maps to fine
-                                    % vertex ii       
-        
-        % update the coarse unary term
-        Uc(cntrV,:) = v;
-        cntrV = cntrV + 1;
-        
-        % update prolongation table
-        plongTab(jj,:) = [jj,vFine(ii),idx];
-        
-        % update skipped list
-        vSkpList(abs(pp)) = 0;
-        
-    elseif gP.bigAgg && (vFine(ii) > 0) && (vFine(jj) == 0)
-        % edge starts at an interpolator vertex, and ends at a free vertex
-        
-        % find the interpolation assignment
-        pairwise = squeeze(G.p(:,:,abs(pp)));
-        if (pp > 0)                 % this *if* makes sure that
-            pairwise = pairwise';   % jj is on 1st dim, ii on 2nd dim
-        end
-        pairwise = bsxfun(@plus,pairwise,G.u(jj,:)');
-        [v, idx] = min(pairwise,[],1);
+    % select a variable-grouping
+    [vg, mapFineToCoarse] = msgmVariableGrouping(G, any(x));
 
-                
-        if any(x)
-            % labels are initialized, overrule values
-            % in the prolongation table
-            v(x(ii)) = pairwise(x(jj),x(ii));
-            idx(x(ii)) = x(jj);
-        end
-              
-        % update index table
-        vFine(jj) = -1 * vFine(ii);     
+    % set an interpolation rule
+    % TODO: reference to equations
+    mapInterpolation = msgmSetInterpolationRule(G, x, vg);
+    
+    % set the coarse potentials
+    Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation);
+    
+    % intialize coarse scale's labeling
+    xc = msgmInherit(x, [vg.seed]);
 
-        % update the coarse unary term
-        Uc(vFine(ii),:) = Uc(vFine(ii),:) + v;
-        
-        % update prolongation table
-        plongTab(jj,:) = [jj,vFine(ii),idx];
-        
-        % update skipped list
-        vSkpList(abs(pp)) = 0;
+end
+
+
+%% Coarsening subroutines
+
+function map = msgmSetInterpolationRule(G, x, vg)
+% msgmSetInterpolationRule set an interpolation-rule, from labeling of a
+% coarse scale to labeling of a fine scale
+
+    % intialize the interpolation-rule table
+    map = zeros(size(G.u,1), G.numLabels);
+    
+    % itearte seed variables
+    for i = 1 : numel(vg)
                
+        % iterate variables in the seed's group
+        for j = 1 : numel(vg(i).vars)
+           
+            if (vg(i).vars(j) == vg(i).seed)
+                % seed variable maps to itself
+                % TODO: reference to paper
+                
+                map(vg(i).vars(j),:) = 1 : G.numLabels;
+                
+            else
+                % TODO: look for bugs in symmetry here!!
+                % find the minimizer (Eq. (3))
+                pairwise = squeeze(G.p(:,:,vg(i).edges(j-1)));
+                if (~vg(i).binv(j-1))
+                    % transpose the pairwise s.t. seed is on 2nd dim
+
+                    pairwise = pairwise';
+                end
+                pairwise = bsxfun(@plus, pairwise, G.u(vg(i).vars(j),:)');
+                [~, map_] = min(pairwise,[],1);            
+
+                if any(x)
+                    % labels are intiailized,
+                    % reset the interpolatin rule (Eq. (6))
+
+                    map_(x(vg(i).seed)) = x(vg(i).vars(j));
+                end
+                
+                map(vg(i).vars(j),:) = map_;
+            end
+        end
     end
-    
 end
 
+function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
 
-%
-% consider vertices that were not accounted for
-% by the previous loop
-% -- complete the construction of the coarse unary term
-idx = find(vFine == 0);             % indices of unaccnt'd fine vertices
-cntrV_ = cntrV + length(idx) - 1;   % update counter of coarse vertices
-vCoarse(cntrV:cntrV_) = idx;        % update vCoarse
-Uc(cntrV:cntrV_,:) = G.u(idx,:);      % update Uc
-vFine(idx) = cntrV : cntrV_;        % update vFine
-vCoarse = vCoarse(1:cntrV_);        % trim excess 0's
-Uc = Uc(1:cntrV_,:);                % trim excess 0's
+    % keep track which edges have been accounted for
+    vbTouch = false(size(G.p,3), 1);
 
-vSkpList = find(vSkpList);
-Mc = length(vSkpList);              % max number of edges in coarse graph
-Pc = zeros(K,K,Mc);                 % coarse pairwise
-Ec = zeros(Mc,2);                   % coarse adjacency matrix
-
-mAdj = sparse([],[],[],...
-    cntrV_,cntrV_,Mc);              % adjacency matrix of coarse graph
-
-cntrE = 1;                          % index counter for coarse [G.adj]dges
-
-%
-% iterate over skipped edges
-% -- building the coarse pairwise/connectivity
-for iS = 1 : Mc
-    
-    ii = G.adj(vSkpList(iS),1); % left vertex of edge iS wrt fine graph
-    jj = G.adj(vSkpList(iS),2);	% right vertex of edge iS wrt fine graph
-
-    ii_ = vFine(ii);        % index of left vertex wrt coarse graph
-    jj_ = vFine(jj);        % index of right vertex wrt coarse graph
-    
-    % interpolated vertices are assigned with a
-    % label according to their interpolators!
-    if (ii_ < 0)
-        % vertex ii_ is interpolated
-        iiperm = plongTab(ii,3:end);
-        ii_ = abs(ii_);
-    else
-        iiperm = 1 : K;       
-    end  
-    if (jj_ < 0)
-        % vertex jj_ is interpolated
-        jjperm = plongTab(jj,3:end);
-        jj_ = abs(jj_);
-    else
-        jjperm = 1 : K;
-    end
-    
-    % process the pairwise
-    % such that interpolated labels are considered correctly
-    pairwise = G.p(:,:,vSkpList(iS));
-    pairwise = pairwise(iiperm,jjperm);
-    
-    % check if edge is a self-loop
-    % --this can happen in big aggregator mode
-    if (ii_ == jj_)
-        % update the relevant unary term
+    % set the coarse unary terms (Eq. (4))
+    uc = zeros(numel(vg), G.numLabels);
+    for i = 1 : numel(vg)
         
-        Uc(ii_,:) = Uc(ii_,:) + diag(pairwise)';
-        continue                % stop processing the edge
-    end
+        % TODO: consider arrayfun here
+        % TODO: consider general case when numLabels is not fixed
+        uGroup = zeros(1, G.numLabels);
         
-    % check if edge exists in coarse graph
-    idx = mAdj(ii_,jj_);
-    if (idx == 0)
-        % edge has not been represented on coarse graph
-        idx = cntrE;
-        mAdj(ii_,jj_) = idx;
-        mAdj(jj_,ii_) = -idx;   % flag that edge is represented in reverse
-        Ec(idx,:) = [ii_, jj_];
-        cntrE = cntrE + 1;
+        % sum j's unary term, considering the interpolation
+        % this is the first term in Eq. (4)        
+        for j = 1 : numel(vg(i).vars)
+            
+            vj = vg(i).vars(j);
+            uGroup = uGroup + G.u(vj, mapInterpolation(vj,:));            
+        end
+        
+        % sum the pairwise energy, considering the interpolation
+        % this is the second term in Eq. (4)
+        for j = 1 : numel(vg(i).edges)
+            
+            vbTouch(vg(i).edges(j)) = true;
+            pairwise = G.p(:,:,vg(i).edges(j));
+            
+            % interpolation rule applied to v1, v2
+            v1 = G.adj(vg(i).edges(j), 1);
+            v2 = G.adj(vg(i).edges(j), 2);
+            map1 = mapInterpolation(v1,:);
+            map2 = mapInterpolation(v2,:);
+            
+            uGroup = uGroup + diag(pairwise(map1, map2))';
+        end
+        
+        uc(i,:) = uGroup;
     end
     
-    % update pairwise in Pc
-    if (idx < 0)
-        % the edge is represented in reverse
+    % set the coarse pairwise terms (Eq. (5))
+    adjMat = zeros(numel(vg));    % coarse scale's adjacency matrix
+    pc = zeros(G.numLabels, G.numLabels, nnz(~vbTouch));
+    adjc = zeros(nnz(~vbTouch),2);
+    nEdgeCounter = 1;
+    vNoTouch = find(~vbTouch);
+    for i = 1 : numel(vNoTouch)
+
+        iEdge = vNoTouch(i);
+              
+        % coarse representatives of edge's variables
+        v1 = G.adj(iEdge,1);
+        v2 = G.adj(iEdge,2);
+        v1c = mapFineToCoarse(v1);
+        v2c = mapFineToCoarse(v2);
+        map1 = mapInterpolation(v1,:);
+        map2 = mapInterpolation(v2,:);
         
-        pairwise = pairwise';
-        idx = abs(idx);
+        % the pairwise term, considering the interpolation
+        pairwise = G.p(:,:,iEdge);
+        pairwise = pairwise(map1, map2);
+        
+        % check if the edge defines a self-loop
+        if (v1c ~= v2c)
+
+            % check if (v1c,v2c) is already defined on the coarse scale
+            if (~adjMat(v1c,v2c))
+                % append as a new edge
+                
+                % track changes to adjacency
+                adjMat(v1c,v2c) = nEdgeCounter;     % pairwise stored as (v1c,v2c)
+                adjMat(v2c,v1c) = -nEdgeCounter;	% flag that pairwise is transposed
+                
+                % update adjacency and pairwise
+                adjc(nEdgeCounter,:) = [v1c, v2c];
+                pc(:,:,nEdgeCounter) = pairwise;
+
+                nEdgeCounter = nEdgeCounter + 1;
+            else
+                % add to an existing edge
+                
+                idx = adjMat(v1c,v2c);
+                if (idx < 0)
+                    pairwise = pairwise';
+                end
+                pc(:,:,abs(idx)) = pc(:,:,abs(idx)) + pairwise;
+            end
+            
+        else
+            % self-loop, add the edge to respective coarse unary term
+            
+            uc(v1c,:) = uc(v1c,:) + diag(pairwise)';
+        end
     end
-    Pc(:,:,idx) = Pc(:,:,idx) + pairwise;
     
-end
-
-Ec = Ec(1:cntrE-1,:);
-Pc = Pc(:,:,1:cntrE-1);
-
-% trim excess 0's in plongTab - 
-% it wasn't trimmed until now in order to allow
-% fast indexing in lines ~225-235
-plongTab = plongTab(vFine < 0,:);
-
-
+    % remove extra 0's
+    pc(:,:,nEdgeCounter:end) = [];
+    adjc(nEdgeCounter:end,:) = [];
+    
+    Gc.u = uc;
+    Gc.p = pc;
+    Gc.adj = adjc;
+    Gc.numLabels = G.numLabels;
+    Gc.bProcessed = false;
 end

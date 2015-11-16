@@ -24,12 +24,15 @@ function [L, e, v] = RelaxGraph(U,E,P,L,gP,varargin)
             switch (gP.relaxType)
 
                 case 'MQPBO'
+                    %assert(false);
                     L = SwapMQPBO(U,E,P,L,gP.numRelax,dTargetEng,gP);
 
                 case 'QPBO'
+                    %assert(false);
                     L = SwapQPBO_(U,E,P,L,gP.numRelax,dTargetEng,gP);
 
                 case 'LSA'
+                    %assert(false);
                     if (numel(L) == prod(gP.imSz)) %((gP.bFineGraph) && (numel(L) == prod(gP.imSz)))
                         L = reshape(L,gP.imSz);
                     end
@@ -37,14 +40,14 @@ function [L, e, v] = RelaxGraph(U,E,P,L,gP,varargin)
                     L = L(:);
 
             end
-                e_ = Energy(U,E,P,L);           % for assertion - remove later
+			e_ = Energy(U,E,P,L);           % for assertion - remove later
 
-                e = round(e * 1e6) / 1e6;
-                e_ = round(e_ * 1e6) / 1e6;
-                assert(e_ <= e);
+			e = round(e * 1e6) / 1e6;
+			e_ = round(e_ * 1e6) / 1e6;
+			assert(e_ <= e);
 
-                e = e_;
-                v = size(U,1);
+			e = e_;
+			v = size(U,1);
 
         end
     else

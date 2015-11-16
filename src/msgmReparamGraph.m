@@ -1,4 +1,4 @@
-function [U, P] = ReparamGraph(U,E,P,gP)
+function [U, P] = msgmReparamGraph(U,E,P,~)
 
 %
 % ReparamGraph(U,E,P) - reparameterize the unary and pairwise terms of the

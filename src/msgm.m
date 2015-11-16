@@ -1,8 +1,9 @@
-function [L, e, t, Q] = msgm(U,E,P,L,params)
+function [x, e, t] = msgm(U,E,P,x,params)
 
 %
 % TODO:
 %   -   consider writing u,adj,p as struct arrays
+%   -   test >1 V-cycles, specifically, where labels are initialized
 % 
 % msgm - main entrypoint to multiscale optimization of graphical models.
 %
@@ -34,61 +35,60 @@ function [L, e, t, Q] = msgm(U,E,P,L,params)
 %
 %
 
-tic;
+    tic;
 
-if isempty(params)
-    params = setParams;
-end
-
-
-%
-% initial reparameteriation of the fine graph
-% can be done outside msmrf() for computational efficiency,
-% otherwise it will be done at each Vcycle iteration
-[U, P] = ReparamGraph(U,E,P,params);
+    if isempty(params)
+        params = setParams;
+    end
 
 
-%
-% set prior
-prior = [];
+    %
+    % initial reparameteriation of the fine graph
+    % can be done outside msmrf() for computational efficiency,
+    % otherwise it will be done at each Vcycle iteration
+    %[U, P] = msgmReparamGraph(U,E,P,params);
 
-%
-% Vcycles
-ebest = Inf;
-for i = 1 : params.numV
-    
-    [L, prior, Q(i+1)] = msgmVcycle(U,E,P,L,prior,params,true);
-    e = Energy(U,E,P,L); 
-    e = round(e * 1e6) / 1e6;
+    %
+    % Vcycles
+    ebest = Inf;
+    G.u = U;
+    G.adj = E;
+    G.p = P;
+    G.numLabels = size(G.u,2);
+    for i = 1 : params.numV
 
-
-%     if (e < ebest)
-%         % found better labeling assignment
-%         
-%         ebest = e;
-%         Lbest = L;
-%         
-%     end
-    
-    assert(e <= ebest);
-
-end
+        x = msgmVcycle(G, x, params);
+        e = Energy(G.u, G.adj, G.p, x); 
+        e = round(e * 1e6) / 1e6;
 
 
-%
-% final relaxation of graph
-params.bFineGraph = true;
-if isempty(L)
-    % provide initial guess
-    [~, L] = min(U,[],2);
-end
-L = RelaxGraph(U,E,P,L,params);
+    %     if (e < ebest)
+    %         % found better labeling assignment
+    %         
+    %         ebest = e;
+    %         Lbest = L;
+    %         
+    %     end
+
+        assert(e <= ebest);
+
+    end
+
+
+    %
+    % final relaxation of graph
+    params.bFineGraph = true;
+    if isempty(x)
+        % provide initial guess
+        [~, x] = min(G.u, [], 2);
+    end
+    x = msgmRelaxGraph(G.u, G.adj, G.p, x, params);
 
 
 
-%
-% energy & time
-t = toc;
-e = Energy(U,E,P,L);
+    %
+    % energy & time
+    t = toc;
+    e = Energy(G.u, G.adj, G.p, x);
 
 end

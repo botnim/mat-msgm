@@ -1,4 +1,4 @@
-function vEdgeList = ScoreEdges(U,E,P,prior,L,gP)
+function vEdgeList = ScoreEdges(U,E,P,prior,L,gP, bBin)
 
 %
 % SelectEdges(U,E,P,L,gP) - create an ordered list of edges to be processed
@@ -17,7 +17,7 @@ function vEdgeList = ScoreEdges(U,E,P,prior,L,gP)
 
 %%% TMP, TWEAK TO AVOID PASSING PARAMS
 if isempty(gP)
-    gP = setParams;
+    gP = msgmParams;
 end
 L = [];
 %%%%%%%%%%%%%%%%
@@ -77,7 +77,7 @@ if gP.bigAgg
         idxBad = (Hji >= gP.bEdgeThrs * log(size(U,2)));
     end
     
-    if gP.binEdges && any(L)
+    if gP.binEdges && bBin
         % 'binning' edge-scores, so that vEdgeList
         % has a random nature; this results in a somewhat
         % random coarse-graph, which helps getting out
@@ -111,7 +111,7 @@ else
     idxrev = (Hij < Hji);               % edges in 'reverse' direction
     Hji(idxrev) = Hij(idxrev);
 
-    if gP.binEdges && any(L)
+    if gP.binEdges && bBin
         % 'binning' edge-scores, see comments above
 
 %         Hji = Hji - min(Hji);

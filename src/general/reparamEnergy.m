@@ -72,10 +72,14 @@ numNodes = size(UE,2);
 newUE = UE;
 % c-a is unary term for i
 [i, ~, c_minus_a] = find(PE10 - PE00);
-newUE(2,:) = newUE(2,:) + (accumarray(i,c_minus_a,[numNodes,1]))'; % c-a
+if (~isempty(i))
+    newUE(2,:) = newUE(2,:) + (accumarray(i,c_minus_a,[numNodes,1]))'; % c-a
+end
 % b-a is unary terms for j
 [~, j, b_minus_a] = find(PE01 - PE00);
-newUE(2,:) = newUE(2,:) + (accumarray(j,b_minus_a,[numNodes,1]))'; % b-a
+if (~isempty(j))
+    newUE(2,:) = newUE(2,:) + (accumarray(j,b_minus_a,[numNodes,1]))'; % b-a
+end
 newConst = full(sum(PE00(:))); % a
 
 
@@ -88,8 +92,12 @@ testE11 = PE00 - PE01 - PE10 + PE11;
 [i, j] = find(testE11<0);
 e11 = testE11(testE11<0);
 % here are the unary terms
-newUE(2,:) = newUE(2,:) + (accumarray(i,e11/2,[numNodes,1]))'; % e11/2
-newUE(2,:) = newUE(2,:) + (accumarray(j,e11/2,[numNodes,1]))'; % e11/2
+if (~isempty(i))
+    newUE(2,:) = newUE(2,:) + (accumarray(i,e11/2,[numNodes,1]))'; % e11/2
+end
+if (~isempty(j))
+    newUE(2,:) = newUE(2,:) + (accumarray(j,e11/2,[numNodes,1]))'; % e11/2
+end
 newSubPE = sparse(numNodes, numNodes);
 newSubPE(sub2ind([numNodes, numNodes],i,j)) = -e11;
 % make it symmetric

@@ -1,14 +1,11 @@
-function uc = msgmInherit(u,vCoarse)
+function xc = msgmInherit(x, inds)
 
-%
-% Restrict(u,vCoarse) - restrict the vector 'u', which represents either
-% a labeling assignment or a prior of the vertices, to those entries which
-% are represented on the coarse graph (given by vCoarse)
-%
-
-
-if isempty(u)
-    uc = [];
-else
-    uc = u(vCoarse,:);
+    if (isempty(x))
+        
+        xc = [];
+    else
+        
+        xc = x(inds(:));
+    end
+    
 end

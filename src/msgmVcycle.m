@@ -1,4 +1,4 @@
-function [L, prior, Q] = msgmVcycle(U,E,P,L,prior,gP,fineGraph)
+function x = msgmVcycle(G, x, param)
 
 %
 % Vcycle(D,E,W,L,gP)    -   A multiscale scheme for finding minimum energy
@@ -40,89 +40,108 @@ function [L, prior, Q] = msgmVcycle(U,E,P,L,prior,gP,fineGraph)
 %
 
 
-%
-% reparameterize the unary and pairwise
-% terms of the graphical model U,E,P
-if (~fineGraph)
-    % finest graph was already reparameterized
-
-    [U, P] = ReparamGraph(U,E,P,gP);
-end
+    %
+    % reparameterize the unary and pairwise
+    % terms of the graphical model U,E,P
+    [G.u, G.p] = msgmReparamGraph(G.u, G.adj, G.p, param);
 
 
-
-%
-% relax the graph
-gP.bFineGraph = fineGraph;
-[L, Q.e, Q.nv] = RelaxGraph(U,E,P,L,gP);
-prior = UpdatePrior(prior,L,gP);
-
-
-%
-% score the edges, a preprocessing step
-% for CompCoarseGraph()
-vEdgeList = ScoreEdges(U,E,P,prior,L,gP);      
-
-%
-% compute coarse graphical model,
-% according to 'vEdgeList'
-[Uc, Ec, Pc, vCoarse, plongTab] = msgmCoarsening(U,E,P,L,vEdgeList,gP);
-Lc = msgmInherit(L,vCoarse);
-priorc = [];
+    %
+    % relax the graph
+    % TODO: it may work better if the graph is first processed (read:
+    % reparamterized)
+    x = msgmRelaxGraph(G.u, G.adj, G.p, x, param);
 
 
-%
-% check stopping condition
-% TODO: check if crsRatioThrs is necessary, if not - can bring to first
-% step if V-cycle
-% TODO: set size(Uc,1) <= 2
-if (size(Uc,1)/size(U,1) >= gP.crsRatioThrs) || ...
-        (size(Uc,1) <= 500)
-    % coarsening ratio is above threshold, stop the recursion
-   
-    [L, prior, Q] = Solve(Uc,Ec,Pc,Lc,priorc, ...
-        U,E,P,L,prior,...
-        vCoarse,plongTab,gP);
-    
-    return
-end
+    %
+    % score the edges, a preprocessing step
+    % for CompCoarseGraph()
+    %vEdgeList = ScoreEdges(GU,E,P,prior,x,gP);      
+
+    %
+    % coarsen the graph
+    % TODO: remove vg if compatible relaxations is unecessary,
+    %       otherwise, come up with more elegant solution
+    [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, x);
+    if (any(xc))
+        EnergyAssert(G.u, G.adj, G.p, x, Gc.u, Gc.adj, Gc.p, xc);
+        EnergyAssert(Gc.u, Gc.adj, Gc.p, xc, G.u, G.adj, G.p, x);
+    end
+
+    %
+    % check stopping condition
+    % TODO: check if crsRatioThrs is necessary, if not - can bring to first
+    % step if V-cycle
+    % TODO: set size(Uc,1) <= 2
+    if (size(Gc.u,1)/size(G.u,1) >= 0.97) || ...
+            (size(Gc.u,1) <= 10)
+        % coarsening ratio is above threshold, stop the recursion
+
+        %Gc.u = round(Gc.u, 6);
+        %Gc.p = round(Gc.p, 6);
+        
+        % solve
+        if (size(Gc.u, 1) == 1)
+
+            [~, xc] = min(Gc.u, [], 2);
+
+        elseif (size(Gc.u, 1) == 2)
+            % exhaustive
+
+            K = size(Gc.u,2);     % number of labels
+            pairwise = Gc.p;
+            ii = Gc.adj(1);         % left vertex of pairwise
+            jj = Gc.adj(2);         % right vertex of pairwise
+
+            % find optimal assignment
+            minEng = Inf;
+            xc = zeros(2,1);
+            for i = 1 : K
+                for j = 1 : K    
+
+                    e = Gc.u(ii,i) + Gc.u(jj,j) + pairwise(i,j);
+                    if (e <= minEng)
+                        minEng = e;
+                        xc([ii,jj]) = [i;j];
+                    end
+                end
+            end
+        else
+
+            if (isempty(xc))        
+                % "winner takes all", initialize according to unary term
+
+                [~, xc] = min(Gc.u, [], 2);
+            end
+            xc = msgmRelaxGraph(Gc.u, Gc.adj, Gc.p, xc, param);
+        end
+
+        x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param);
+        if ~param.bPlongCR
+            EnergyAssert(G.u, G.adj, G.p, x, Gc.u, Gc.adj, Gc.p, xc);
+            EnergyAssert(Gc.u, Gc.adj, Gc.p, xc, G.u, G.adj, G.p, x);
+        end
+        x = msgmRelaxGraph(G.u, G.adj, G.p, x, param);
+
+        return
+    end
 
 
-%
-% recursive call
-[Lc, priorc, Qc] = msgmVcycle(Uc,Ec,Pc,Lc,priorc,gP,false);
-Q.e = [Q.e, Qc.e];
-Q.nv = [Q.nv, Qc.nv];
-
-%
-% interpolate solution
-if not(gP.bPlongCR)
-
-    L = Prolong(Lc,vCoarse,plongTab);
-else
-
-    [Ucr, Ecr, Pcr, Lcr, vCR2Fine, L] = MakeCRgraph(U,E,P,Lc,vCoarse,plongTab);
-    L_ = ProlongP(L,Lcr,vCR2Fine);
-    gP_ = gP;
-    gP_.numRelax = 5;
-    Lcr = RelaxGraph(Ucr,Ecr,Pcr,Lcr,gP_);
-    L = ProlongP(L,Lcr,vCR2Fine);
-    EnergyAssert(U,E,P,L,U,E,P,L_);
-end
+    %
+    % recursive call
+    xc = msgmVcycle(Gc, xc, param);
 
 
+    %
+    % interpolate solution
+    % TODO: shove the compatible relaxations into msgmInterpolate
+    x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param);
+    %EnergyAssert(G.u, G.adj, G.p, x, Gc.u, Gc.adj, Gc.p,xc);
 
-%
-% assertion - remove later
-% EnergyAssert(U,E,P,L,Uc,Ec,Pc,Lc);
-    
 
-%
-% relax the graph
-[L, e_, nv_] = RelaxGraph(U,E,P,L,gP);
-Q.e = [Q.e, e_];
-Q.nv = [Q.nv, nv_];
-prior = UpdatePrior(prior,L,gP);
+    %
+    % relax the graph
+    x = msgmRelaxGraph(G.u, G.adj, G.p, x, param);
 
 
 end
