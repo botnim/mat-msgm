@@ -22,7 +22,7 @@ itr = num2cell(1:numel(lP));
 
 %
 % set global parameters
-gP = setParams;
+gP = msgmParams();
 
 
 %

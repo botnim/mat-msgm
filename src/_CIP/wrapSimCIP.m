@@ -1,7 +1,7 @@
 function wrapSimCIP()
 
 sPath = pwd;
-dirName = 'C:\Users\OM\Desktop\results-10cyc-soft';
+dirName = 'C:\Users\OM\Desktop\results';
 numTests = 100;
 
 load('DTF-names.mat');

@@ -16,7 +16,7 @@
 
 GRID_SIZE = 100;    	% 4-connected grid GRID_SIZE by GRID_SIZED
 K = 2;              	% number of labels
-numTests = 1;     	% number of tests
+numTests = 50;     	% number of tests
 
 %
 % initialization of some vars for adjacency matrix
@@ -56,134 +56,22 @@ for i = 1 : numTests
 
     P = 2 * randn(K,K,M);
     P = round(P * 1e1) / 1e1;
-    
-% %     ig = int32(randi(2,size(U,1),1));
-% %     
-% %     tic;
-% %     u = U';
-% %     p = [E(:,1)'; E(:,2)'; ...
-% %             squeeze(P(1,1,:))'; ...         	% Eij(0,0)
-% %             squeeze(P(1,2,:))'; ...          	% Eij(0,1)
-% %             squeeze(P(2,1,:))'; ...       	% Eij(1,0)
-% %             squeeze(P(2,2,:))'];    
-% % 
-% %     u(isinf(u)) = 1e3;
-% %     p(isinf(p)) = 1e3;
-% %     
-% %     ig_ = ig;
-% %     for j = 1 : 6
-% %         
-% %         x = QPBO_wrapper_mex(u, p, ig_, 'i');
-% %         ig_ = x+1;
-% %     end
-% %     t1 = toc;
-% % 
-% %     tic;
-% %     y = qpboms(U,E,P,ig,gP);
-% %     t2 = toc;
-% % 
-% %     e1 = Energy(U,E,P,double(x+1));
-% %     e2 = Energy(U,E,P,double(y+1));
-% %     
-% %     eng(i,:) = [e1, e2];
-% %     time(i,:) = [t1, t2];
-    
-    
+        
     % find energy for k-label representation
     gP = setParams;
     gP.imSz = [GRID_SIZE, GRID_SIZE];
     gP.relaxType = 'LSA';
     gP.numV = 1;
     tic;
-    [Lk, ~, ~] = msmrf(U,E,P,[],gP);
-    eMS = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
-    tMS = toc;
+    [~, eMS(i), ~] = msmrf(U,E,P,[],gP);
     
-    gP = setParams;
-    gP.imSz = [GRID_SIZE, GRID_SIZE];
-    gP.relaxType = 'LSA';
-    gP.numV = 0;
-    tic;
-    [Lk, ~, ~] = msmrf(U,E,P,[],gP);
-    eSS = round(Energy(U,E,P,Lk) * 1e2) / 1e2;
-    tSS = toc;
-
-    disp(strcat('multiscale energy:  ',num2str(eMS)));
-    disp(strcat('multiscale time:    ',num2str(tMS)));
-    disp(strcat('singlescale energy: ',num2str(eSS)));
-    disp(strcat('singlescale time:   ',num2str(tSS)));
-    % ... same but with MQPBO
-%     gP.MQPBO = true;
-%     gP.numRelax = 10;
-%     tic;
-%     [L_, ~, ~] = msmrf(U,E,P,[],gP);
-%     e_ = round(Energy(U,E,P,L_) * 1e2) / 1e2;
-%     t_ = toc;
+    gP.relaxType = 'QPBO';
+    [~, eQPBO(i), ~] = msmrf(U,E,P,[],gP);
 %     
-%     tmp(i,:) = [ek, e_];
-%     time(i,:) = [tk,t_];
-
-% %     % find energy for 2-label representation
-% %     tic;
-% %     gP.b2lbl = true;
-% %     gP.CONST = 100;
-% %     gP.bEdgeThrs = 1;
-% %     gP.binEdges = 5;
-% %     gP.MQPBO = true;
-% %     [U_, E_, P_, const] = kto2(U,E,P,gP);
-% %     tic;
-% %     [L2, ~, ~] = msmrf(U_,E_,P_,[],gP);
-% %     e2 = round((Energy(U_,E_,P_,L2) + const) * 1e2) / 1e2;
-% %     t2 = toc;
-% %     L2_ = labels2tok(L2,K);  
-% %     e2_ = round(Energy(U,E,P,L2_) * 1e2) / 1e2; 
-% %     assert(e2 == e2_);
-% %     
-% %     
-% %     % find energy for 2-label representation
-% %     tic;
-% %     gP.b2lbl = true;
-% %     gP.CONST = 100;
-% %     gP.bEdgeThrs = 1;
-% %     gP.binEdges = 5;
-% %     [U_, E_, P_, const] = kto2exp(U,E,P,gP);
-% %     tic;
-% %     [L2, ~, ~] = msmrf(U_,E_,P_,[],gP);
-% %     e2exp = round((Energy(U_,E_,P_,L2) + const) * 1e2) / 1e2;
-% %     t2exp = toc;
-% %     L2_ = labels2tokexp(L2,K);  
-% %     e2_ = round(Energy(U,E,P,L2_) * 1e2) / 1e2; 
-% %     assert(e2exp == e2_);
-    
-% %     tmp(i,:) = [ek, e2, e2exp];
-    
-    a = 1;
-    
-    
-%     % find minimum energy
-%     eMin_ = realmax;
-%     c = CounterInBase(K);
-%     for j = 1 : K ^ size(U,1)
-%         
-%         L = zeros(1,size(U,1));
-%         tmpL = c.next();
-%         L(end-length(tmpL)+1:end) = tmpL;	% next chronological labeling
-% 
-%         L = L' + 1;
-%         
-%         tmpEnergy = round(Energy(U,E,P,L) * 1e2) / 1e2;
-%         if (tmpEnergy < eMin_)
-%             eMin_ = tmpEnergy;
-%             vLmin = L;
-%         end
-%     end
-%     
-%     eMin(i) = eMin_;  
-% 
-%     if ~isequal(e,eMin(i))
-%         assert(e > eMin(i));
-%         count = count + 1;
-%     end
+%     disp(strcat('multiscale energy:  ',num2str(eMS)));
+%     disp(strcat('multiscale time:    ',num2str(tMS)));
+%     disp(strcat('singlescale energy: ',num2str(eSS)));
+%     disp(strcat('singlescale time:   ',num2str(tSS)));
     
 end
 

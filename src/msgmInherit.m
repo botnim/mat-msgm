@@ -7,5 +7,4 @@ function xc = msgmInherit(x, inds)
         
         xc = x(inds(:));
     end
-    
 end

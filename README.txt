@@ -1,5 +1,5 @@
-msgm v1.0
-=========
+msgm
+====
 
 An implementation of the framework described in
 

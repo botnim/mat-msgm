@@ -1,14 +1,11 @@
 function [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, x)
-%msgmCoarsening apply coarsening procedure for given variable-grouping
+% msgmCoarsening(G, x) apply coarsening by variable-grouping
 %
-% output:
-
-    
+   
     % select a variable-grouping
     [vg, mapFineToCoarse] = msgmVariableGrouping(G, any(x));
 
     % set an interpolation rule
-    % TODO: reference to equations
     mapInterpolation = msgmSetInterpolationRule(G, x, vg);
     
     % set the coarse potentials
@@ -36,14 +33,14 @@ function map = msgmSetInterpolationRule(G, x, vg)
         for j = 1 : numel(vg(i).vars)
            
             if (vg(i).vars(j) == vg(i).seed)
-                % seed variable maps to itself
-                % TODO: reference to paper
+                % seed variable gets the label
+                % of the coarse representative (Eq. (2))
                 
                 map(vg(i).vars(j),:) = 1 : G.numLabels;
                 
             else
-                % TODO: look for bugs in symmetry here!!
                 % find the minimizer (Eq. (3))
+
                 pairwise = squeeze(G.p(:,:,vg(i).edges(j-1)));
                 if (~vg(i).binv(j-1))
                     % transpose the pairwise s.t. seed is on 2nd dim
@@ -75,8 +72,6 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
     uc = zeros(numel(vg), G.numLabels);
     for i = 1 : numel(vg)
         
-        % TODO: consider arrayfun here
-        % TODO: consider general case when numLabels is not fixed
         uGroup = zeros(1, G.numLabels);
         
         % sum j's unary term, considering the interpolation
@@ -88,7 +83,7 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
         end
         
         % sum the pairwise energy, considering the interpolation
-        % this is the second term in Eq. (4)
+        % this is (part of) the second term in Eq. (4)
         for j = 1 : numel(vg(i).edges)
             
             vbTouch(vg(i).edges(j)) = true;
@@ -156,15 +151,17 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
             
         else
             % self-loop, add the edge to respective coarse unary term
+            % this is the remainder of the second term in Eq. (4)
             
             uc(v1c,:) = uc(v1c,:) + diag(pairwise)';
         end
     end
     
-    % remove extra 0's
+    % resize to remove reserved space
     pc(:,:,nEdgeCounter:end) = [];
     adjc(nEdgeCounter:end,:) = [];
     
+    % the coarse graph
     Gc.u = uc;
     Gc.p = pc;
     Gc.adj = adjc;

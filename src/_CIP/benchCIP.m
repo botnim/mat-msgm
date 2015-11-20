@@ -61,7 +61,7 @@ P = permute(P,[2,3,1]);
 %e = zeros(1,11);
 %t = zeros(1,11);
 
-gP_ = setParams;
+gP_ = msgmParams();
 
 % UAI output
 % sfileout = fullfile(pwd,'uai',strcat(lP.filename(1:end-3),'uai'));

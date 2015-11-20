@@ -7,7 +7,7 @@ function x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param
     % all variables in a group get the label of their seed
     x = xc(mapFineToCoarse);
 
-    if (~param.bPlongCR)
+    if (~param.bSoftInterpolation)
         % apply the interpolation rule for all variables
     
         inds = sub2ind(size(mapInterpolation), ...
@@ -30,12 +30,12 @@ function x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param
         [~, xcond] = min(Gcond.u, [], 2);
 		xASSERT = x;
 		xASSERT(~vb) = xcond;
-        xcond = msgmRelaxGraph(Gcond.u, Gcond.adj, Gcond.p, xcond, param);
+        xcond = msgmOptimizeScale(Gcond, xcond, param);
         
         % map the optimized labels to the original variables
         x(~vb) = xcond;
 		
-		EnergyAssert(G.u, G.adj, G.p, x, G.u, G.adj, G.p, xASSERT);
+		assert(msgmEnergy(G, x) <= msgmEnergy(G, xASSERT));
     
     end
 end

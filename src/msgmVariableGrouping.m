@@ -1,18 +1,24 @@
-function [vg, mapFineToCoarse] = msgmVariableGrouping(G, bBin)
-%msgmVariableGrouping select a variable grouping for the coarsening stage
+function [vg, mapFineToCoarse] = msgmVariableGrouping(G, bInitialized)
+% msgmVariableGrouping(G, bInitialized) select a variable grouping for the coarsening stage
 %
-%   Detailed explanation goes here
+% input:
+%
+%       - G : graphical model
+%       - bBin : boolean flag for whether labels are initialized
+%
 % output:
 %       - vg, struct array
-%           vg(i).seed  : the i-th seed (TODO: explain that this is redundant)
+%           vg(i).seed  : the i-th seed
 %           vg(i).vars  : variables in the i-th group (including seed)
-%           vg(i).edges : (some of the..) edges in the i-th group
+%           vg(i).edges : (some of the...) edges in the i-th group
 %           vg(i).binv  : boolean flag specifying if the edge is 'inversed'
-%           vg.mapFineToCoarse
+%       
+%       - mapFineToCoarse : mapping of variables from a fine scale to a
+%                           coarse scale, i.e. mapFineToCoarse(v1) = vc
+%                           means that fine-variable indexed by v1 is
+%                           mapped to a coarse-variable indexed by vc
 
-%
-% TODO: for fine-scale, pre-processing (scoring) is not necessary!
-    
+% TODO: for fine-scale, pre-processing (scoring) is not necessary!  
 
     % output data structures
     vg = [];
@@ -22,11 +28,11 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, bBin)
     vbVars = true(size(G.u,1),1);
     vbSeeds = false(size(G.u,1),1);
     
-    % local-conditional-entropy rating
+    % local-conditional-entropy scores
     % vbInvEdge defines whether the pairwise is stored
     % in G.p as (v1,v2) or as (v2,v1)
     % TODO: scoreEdges only if G.bProcessed = false
-    orderedEdgeList = msgmScoreEdges(G.u, G.adj, G.p, [], [], [], bBin);
+    orderedEdgeList = msgmScoreEdges(G.u, G.adj, G.p, [], [], [], bInitialized);
     vbInvEdge = (orderedEdgeList < 0);
     orderedEdgeList = abs(orderedEdgeList);
     

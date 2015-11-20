@@ -3,51 +3,52 @@ function L = SwapQPBO_(U,E,P,L,N,varargin)
 % ab-Swap on top of QPBO(I) for non-submodular energies
 %
 
-if ~isempty(varargin)
-    dTargetEng = varargin{1};
-    if (length(varargin) > 1)
-        
-        gP = varargin{2};
+    if ~isempty(varargin)
+        dTargetEng = varargin{1};
+        if (length(varargin) > 1)
+
+            gP = varargin{2};
+        end
+    else
+        dTargetEng = -Inf;
     end
-else
-    dTargetEng = -Inf;
+
+
+    K = size(U,2);
+
+    e = Energy(U,E,P,L);
+
+    combs = combnk(1:K,2);
+    combs = combs(randperm(size(combs,1)),:);
+    for itr = 1 : N
+
+        perm = 1: size(combs,1); %randperm(size(combs,1));
+        for i = 1 : length(perm)
+            a = combs(perm(i),1);
+            b = combs(perm(i),2);
+            L = swap(U,E,P,L,a,b);
+        end
+
+        ne = Energy(U,E,P,L);
+        e = round(e*1e6) / 1e6;
+        ne = round(ne*1e6) / 1e6;
+        assert(ne <= e);        % energy does not increase...
+        if (e == ne) || (ne <= dTargetEng)
+    %         e = ne;
+            break;              % too small an improvement
+        end
+        e = ne;
+    end
+
 end
 
 
-K = size(U,2);
-
-e = Energy(U,E,P,L);
-
-combs = combnk(1:K,2);
-combs = combs(randperm(size(combs,1)),:);
-for itr = 1 : N
-
-    perm = randperm(size(combs,1));
-    for i = 1 : length(perm)
-        a = combs(perm(i),1);
-        b = combs(perm(i),2);
-        L = swap(U,E,P,L,a,b,gP);
-    end
-    
-    ne = Energy(U,E,P,L);
-    e = round(e*1e6) / 1e6;
-    ne = round(ne*1e6) / 1e6;
-    assert(ne <= e);        % energy does not increase...
-    if (e == ne) || (ne <= dTargetEng)
-%         e = ne;
-        break;              % too small an improvement
-    end
-    e = ne;
-end
-
-
-function L = swap(U,E,P,L,a,b,gP)
+function L = swap(U,E,P,L,a,b)
 %
 % swap labels a and b in curent solution l
 %
 
 
-if ~gP.b2lbl
     % working multi label
     
     sel = (L==a) | (L==b); % participating nodes
@@ -103,30 +104,12 @@ if ~gP.b2lbl
             squeeze(P(b,a,ww_))'; ...       	% Eij(1,0)
             squeeze(P(b,b,ww_))'];              % Eij(1,1)
     end
-    
-else
-    % working 2 labels
-    
-    % validate label order
-    a = 1;
-    b = 2;
-    
-    sel = true(size(U,1),1);
-    
-    u = U';
-    p = [E(:,1)'; E(:,2)'; ...
-            squeeze(P(1,1,:))'; ...         	% Eij(0,0)
-            squeeze(P(1,2,:))'; ...          	% Eij(0,1)
-            squeeze(P(2,1,:))'; ...       	% Eij(1,0)
-            squeeze(P(2,2,:))'];    
 
-    u(isinf(u)) = 1e3;
-    p(isinf(p)) = 1e3;
-        
+
+    ig = int32(L(sel)==b);
+    x = QPBO_wrapper_mex(u, p, ig, 'i');
+    rl = a*ones(numel(x),1);
+    rl(x > 0) = b;
+    L(sel) = rl;
+
 end
-
-ig = int32(L(sel)==b);
-x = QPBO_wrapper_mex(u, p, ig, 'i');
-rl = a*ones(numel(x),1);
-rl(x > 0) = b;
-L(sel) = rl;

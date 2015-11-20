@@ -11,8 +11,6 @@ function [Gcond, xcond] = msgmConditionalDist(G, x, vb)
 % and hence its calculation is dropped.
 %
 
-	%assert(false);
-
     % maps: (var inds in cond. graph) <-> (var inds in orig. graph)
     mapCondToOrig = find(~vb);
     mapOrigToCond = zeros(1, size(G.u, 1));
@@ -25,6 +23,7 @@ function [Gcond, xcond] = msgmConditionalDist(G, x, vb)
     % some edges are fully contained, and some edges
     % have only one endpoint in the cond. graph
     adjcondInds = [];
+    % TODO: consider pre-allocation of adjcondInds
     for i = 1 : size(G.p, 3)
 
         v1 = G.adj(i,1);
@@ -47,7 +46,7 @@ function [Gcond, xcond] = msgmConditionalDist(G, x, vb)
             % only the second variable is in the conditional graph
 
             pairwise = G.p(:,:,i);
-            v2cond = mapOrigToCond(v2);     % jj's index w.r.t CR graph
+            v2cond = mapOrigToCond(v2);
             ucond(v2cond,:) = ucond(v2cond,:) + pairwise(x(v1),:);
 
         end

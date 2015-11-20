@@ -70,12 +70,15 @@ assert(~any(isnan(Hij)));
 %
 % sort the edges
 M = size(E,1);      % number of edges
-
+if gP.bigAgg
     % make big aggregators, keep edges in both directions
        
     Hji = [Hji; Hij];
+    if gP.bEdgeThrs
+        idxBad = (Hji >= gP.bEdgeThrs * log(size(U,2)));
+    end
     
-    if (gP.numEntropyBins > 0)
+    if gP.binEdges && bBin
         % 'binning' edge-scores, so that vEdgeList
         % has a random nature; this results in a somewhat
         % random coarse-graph, which helps getting out
@@ -85,16 +88,55 @@ M = size(E,1);      % number of edges
         % preferable over a random orderding
         
         Hji = Hji / log(size(U,2));         % normalizing by maximal entropy
-        Hji = round(Hji * gP.numEntropyBins);     % bin the entropy score
+        Hji = round(Hji * gP.binEdges);     % bin the entropy score
         Hji = Hji + 0.5 * rand(size(Hji));  % add randomness, avoid bin-mixing
                
     end
       
     [~, idx] = sort(Hji,'ascend');
     
+    if gP.bEdgeThrs
+        idx(idxBad(idx)) = NaN;
+    end
+    
   	idx(idx > M) = -1 * (idx(idx > M) - M);	% remove the offset of revers-
                                 % ed edges (whose indices are > M), and
                                 % apply a (-) sign to mark them.
+    if gP.bEdgeThrs                               
+        idx(isnan(idx)) = [];
+    end
+
+else
+    % pairwise contraction, keep a single direction for each edge
+       
+    idxrev = (Hij < Hji);               % edges in 'reverse' direction
+    Hji(idxrev) = Hij(idxrev);
+
+    if gP.binEdges && bBin
+        % 'binning' edge-scores, see comments above
+
+%         Hji = Hji - min(Hji);
+%         if (max(Hji) > 0)
+%             Hji = Hji / max(Hji);
+%         end
+%         Hji = round(Hji * gP.binEdges);
+%         Hji = Hji + 0.5 * rand(size(Hji));       
+        
+        Hji = Hji / log(size(U,2));         % normalizing by maximal entropy
+        Hji = round(Hji * gP.binEdges);     % bin the entropy score
+        Hji = Hji + 0.5 * rand(size(Hji));  % add randomness, avoid bin-mixing
+        
+    end
+    
+    [~, idx] = sort(Hji,'ascend');
+    
+    idxrev = idxrev(idx);    	% the indices of the edges were permuted in
+                                % the 'sort' above, apply the permuta-
+                                % tion on the reveresed indices as well
+    
+    idx(idxrev) = -1 * idx(idxrev);     % mark those edges as 'reversed'
+    
+end
 
                                                              
 vEdgeList = idx;

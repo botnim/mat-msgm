@@ -1,4 +1,4 @@
-function [U, P] = msgmReparamGraph(U,E,P,~)
+function G = msgmReparam_orig(G)
 
 %
 % ReparamGraph(U,E,P) - reparameterize the unary and pairwise terms of the
@@ -14,6 +14,10 @@ function [U, P] = msgmReparamGraph(U,E,P,~)
 % interpolation rule which is set in CompCoarseGraph()
 %
 
+
+U = G.u;
+E = G.adj;
+P = G.p;
 
 % for new kto2 framework, mark "invalid" edges
 idxInf = zeros(size(P,3),1);
@@ -53,3 +57,6 @@ for i = 1 : K
     U(:,i) = U(:,i) + accumarray(E(~idxInf,2),pj(:,i),[N,1]);
 end
 
+
+G.u = U;
+G.p = P;
