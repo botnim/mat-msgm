@@ -7,7 +7,7 @@ function [eMS, tMS, eSS, tSS] = msgmDemo()
 %   - GRID_SIZE : generate grid of size [GRID_SIZE x GRID_SIZE]
 %   - N_LABELS  : size of the label set
 %   - N_REPETITIONS : num of test-repetitions
-%   - COUPLING : coupling "strength", values >1 correspond to "harder" models
+%   - COUPLING : coupling parameter, values >1 correspond to "harder" models
 %
 
     % parameters
@@ -49,9 +49,9 @@ function [eMS, tMS, eSS, tSS] = msgmDemo()
 
         % multiscale and single-scale optimization
         [~, eMS(i), tMS(i)] = msgm(G, [], param);
-
-        param.numVcycles = 0;
-        [~, eSS(i), tSS(i)] = msgm(G, [], param);
+% 
+%         param.numVcycles = 0;
+%         [~, eSS(i), tSS(i)] = msgm(G, [], param);
     end
 
 end

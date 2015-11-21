@@ -12,6 +12,7 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
 %           vg(i).vars  : variables in the i-th group (including seed)
 %           vg(i).edges : (some of the...) edges in the i-th group
 %           vg(i).brev  : boolean flag specifying if the edge is 'reversed'
+%           vg(i).map   : interpolation rule, set later
 %       
 %       - mapFineToCoarse : mapping of variables from a fine scale to a
 %                           coarse scale, i.e. mapFineToCoarse(v1) = vc
@@ -21,7 +22,7 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
 % TODO: for fine-scale, pre-processing (scoring) is not necessary!  
 
     % output data structures
-    vg = [];
+    vg = cell(size(G.u, 1), 1);
     mapFineToCoarse = zeros(size(G.u,1),1);
 
     % VARS and SEEDS
@@ -37,6 +38,7 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
     
     % assign SEED variables and their respective group
     iEdge = 0;
+    iGroup = 0;
     while (any(vbVars) &&  (iEdge < numel(orderedEdgeList)))
        
         % get the next edge
@@ -63,9 +65,9 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
                 v1c = mapFineToCoarse(v1);
                 
                 % update v1c's group
-                vg(v1c).vars = cat(1, vg(v1c).vars, v2);
-                vg(v1c).edges = cat(1, vg(v1c).edges, orderedEdgeList(iEdge));
-                vg(v1c).brev = cat(1, vg(v1c).brev, vbReverseEdge(iEdge));
+                vg{v1c}.vars = cat(1, vg{v1c}.vars, v2);
+                vg{v1c}.edges = cat(1, vg{v1c}.edges, orderedEdgeList(iEdge));
+                vg{v1c}.brev = cat(1, vg{v1c}.brev, vbReverseEdge(iEdge));
                 
                 % update v2's coarse representative
                 mapFineToCoarse(v2) = v1c;
@@ -73,16 +75,19 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
             else
                 % v1 is a new seed variable
                 
+                iGroup = iGroup + 1;
+                
                 % construct v1c's group              
                 v1group.seed = v1;
                 v1group.vars = [v1; v2];
                 v1group.edges = orderedEdgeList(iEdge);
                 v1group.brev = vbReverseEdge(iEdge);
-                vg = cat(1, vg, v1group);
+                vg{iGroup} = v1group;
                 
                 % update v1,v2 coarse representative
-                mapFineToCoarse(v1) = numel(vg);
-                mapFineToCoarse(v2) = numel(vg);
+                mapFineToCoarse(v1) = iGroup;
+                mapFineToCoarse(v2) = iGroup;
+
             end
             
             % update seeds and vars
@@ -94,14 +99,20 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
     % collect "leftover" variables
     leftoverVars = find(vbVars);
     for i = 1 : numel(leftoverVars)
+        
+        iGroup = iGroup + 1;
        
         % the group is singleton
         v1group.seed = leftoverVars(i);
         v1group.vars = leftoverVars(i);
         v1group.edges = [];
         v1group.brev = [];
-        vg = cat(1, vg, v1group);
-        mapFineToCoarse(leftoverVars(i)) = numel(vg);
+        vg{iGroup} = v1group;
+        mapFineToCoarse(leftoverVars(i)) = iGroup;
     end
+    
+    % clear pre-allocated space, make vg a struct array
+    vg(iGroup + 1 : end) = [];
+    vg = cat(1, vg{:});
 end
 

@@ -48,7 +48,11 @@ function x = msgmVcycle(G, x, param)
     % TODO: remove vg if compatible relaxations is unecessary,
     %       otherwise, come up with more elegant solution
     % TODO: mapInterpolation in vg(i)
-    [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, param, x);
+%     [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, param, x);
+    [Gc, xc, vg] = msgmCoarsening_new(G, param, x);
+    mapFineToCoarse = [];
+    mapInterpolation = [];
+    % TODO: take into coarsening
     msgmEnergyAssert(G, x, Gc, xc);
 
 
@@ -57,7 +61,7 @@ function x = msgmVcycle(G, x, param)
 
 
     % interpolate solution
-    x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param);
+    x = msgmInterpolate(G, vg, xc, param, mapFineToCoarse, mapInterpolation);
 
     
     % run inference on the current scale
