@@ -23,7 +23,6 @@ function [Gcond, xcond] = msgmConditionalDist(G, x, vb)
     % some edges are fully contained, and some edges
     % have only one endpoint in the cond. graph
     adjcondInds = [];
-    % TODO: consider pre-allocation of adjcondInds
     for i = 1 : size(G.p, 3)
 
         v1 = G.adj(i,1);

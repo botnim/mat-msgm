@@ -43,7 +43,6 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
         v2 = G.adj(orderedEdgeList(iEdge), 2);
         if (vbReverseEdge(iEdge))
             % the relevant direction is (v2,v1)
-            % TODO: consider transposing the pairwise and getting rid of vg.brev
            
             v_ = v1;
             v1 = v2;

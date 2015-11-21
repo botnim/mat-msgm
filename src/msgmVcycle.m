@@ -17,8 +17,8 @@ function x = msgmVcycle(G, x, param)
 %   x   -   a labeling assignment of the variables
 %
 
+
     % check stopping condition
-    % TODO: make sure LSA foreground is not messing up
     if (size(G.u,1) <= param.numMinVars)
         
         if (isempty(x))
@@ -33,9 +33,8 @@ function x = msgmVcycle(G, x, param)
         return;
     end
 
+	
     % run inference on the current scale
-    % TODO: it may work better if the graph is first processed (read:
-    % reparamterized)
     x = msgmOptimizeScale(G, x, param);
   
 
