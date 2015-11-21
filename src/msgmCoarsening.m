@@ -1,7 +1,7 @@
 function [Gc, xc, vg] = msgmCoarsening(G, param, x)
 % msgmCoarsening(G, x) apply coarsening by variable-grouping
 %
-   
+
     % select a variable-grouping
     [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, any(x));
 

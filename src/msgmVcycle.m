@@ -25,7 +25,11 @@ function x = msgmVcycle(G, x, param)
         return;
     end
 
+    
+    % reparameterization of the energy potentials
+    G = msgmReparam(G);
 	
+    
     % run inference on the current scale
     if (any(x))
     

@@ -12,7 +12,7 @@ function [vEdgeList, vbReverseEdge] = msgmScoreEdges(G, param, bInitialized)
 %
 
     % reparameterization of the energy potentials
-    G = msgmReparam(G);
+%     G = msgmReparam(G);
 
     % normalize the unary potential by the variable's connectivity degree
     vDeg = accumarray(G.adj(:), 1, [size(G.u, 1), 1]);
