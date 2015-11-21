@@ -2,7 +2,15 @@ function x = msgmOptimizeScale(G, x, param)
 % msgmOptimizeScale(G, x, param) single-scale optimization of a graphical
 % model 'G', given an initial guess 'x'
 
-    if (any(x) && ~strcmp(param.optimization,'NONE'))
+    if (isempty(x))
+        % labels not initialized,
+        % currently, move-making methods require initialization
+
+        % initialize according to unary term
+        [~, x] = min(G.u, [], 2);
+    end
+
+    if (~strcmp(param.optimization,'NONE'))
 
         % keep current labeling assignment to assert improvement
         x_ = x;

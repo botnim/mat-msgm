@@ -50,7 +50,7 @@ ADDITIONAL NOTES
 The code is structured such that the main components can easily be replaced,
 e.g. the variable-grouping algorithm and the selection of an interpolation rule.
  
-A single-scale optimization scheme can be wrapped and placed under "TODO".
+A single-scale optimization scheme can be wrapped and placed in msgmOptimizeScale().
  
 
 

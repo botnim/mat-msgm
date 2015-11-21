@@ -21,21 +21,16 @@ function x = msgmVcycle(G, x, param)
     % check stopping condition
     if (size(G.u,1) <= param.numMinVars)
         
-        if (isempty(x))
-            % labels not initialized,
-            % currently, move-making methods require initialization
-           
-            % initialize according to unary term
-            [~, x] = min(G.u, [], 2);
-        end
-        x = msgmOptimizeScale(G, x, param);
-        
+        x = msgmOptimizeScale(G, x, param);       
         return;
     end
 
 	
     % run inference on the current scale
-    x = msgmOptimizeScale(G, x, param);
+    if (any(x))
+    
+        x = msgmOptimizeScale(G, x, param);
+    end
   
 
     % coarsen the graph

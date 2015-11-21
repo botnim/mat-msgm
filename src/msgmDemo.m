@@ -52,13 +52,11 @@ function [eMS, tMS, eSS, tSS] = msgmDemo()
         [~, eMS(i), tMS(i)] = msgm(G, [], param);
 
         % single scale
-        [~, x] = min(G.u, [], 2);
         G.numLabels = size(G.u, 2);
         tSS_ = tic;
-        x = msgmOptimizeScale(G, x, param);
+        x = msgmOptimizeScale(G, [], param);
         tSS(i) = toc(tSS_);
         eSS(i) = msgmEnergy(G, x);
     end
-
 end
 
