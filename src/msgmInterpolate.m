@@ -1,16 +1,8 @@
-function x = msgmInterpolate(G, vg, xc, param, mapFineToCoarse, mapInterpolation)
+function x = msgmInterpolate(G, vg, xc, param)
 % msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpoation)
 % given a labeling 'xc' of the coarse scale, interpolate the assignment
 % according to the interpolation rule 'mapInterpolation'
 %
-   
-    
-%     x = xc(mapFineToCoarse);
-%     
-%     inds = sub2ind(size(mapInterpolation), ...
-%         (1 : numel(mapFineToCoarse))', ...
-%         x);
-%     x = mapInterpolation(inds);
     
     x = zeros(size(G.u, 1), 1);
 

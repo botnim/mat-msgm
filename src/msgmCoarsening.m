@@ -1,4 +1,4 @@
-function [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, param, x)
+function [Gc, xc, vg] = msgmCoarsening(G, param, x)
 % msgmCoarsening(G, x) apply coarsening by variable-grouping
 %
    
@@ -6,29 +6,41 @@ function [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, par
     [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, any(x));
 
     % set an interpolation rule
-    mapInterpolation = msgmSetInterpolationRule(G, x, vg);
+    [vg, mapInterpolation] = msgmSetInterpolationRule(G, x, vg);
     
     % set the coarse potentials
     Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation);
     
     % intialize coarse scale's labeling
     xc = msgmInherit(x, [vg.seed]);
-
+    
+    msgmEnergyAssert(G, x, Gc, xc);
 end
 
 
 %% Coarsening subroutines
 
-function map = msgmSetInterpolationRule(G, x, vg)
+function [vg, mapInterpolation] = msgmSetInterpolationRule(G, x, vg)
 % msgmSetInterpolationRule set an interpolation-rule, from labeling of a
 % coarse scale to labeling of a fine scale
+%
+% output:
+%
+%   - vg : appends a 'map' field for the interpolation rule
+%
+%   - mapInterpolation : (optinal, for internal use) interpolation table,
+%                        used for slightly improving the running time
+%
 
     % intialize the interpolation-rule table
-    map = zeros(size(G.u,1), G.numLabels);
-    
+    mapInterpolation = zeros(size(G.u,1), G.numLabels);    
+
     % itearte seed variables
     for i = 1 : numel(vg)
                
+        % allocate space for the interpolation rule of the i-th group
+        map = zeros(numel(vg(i).vars), G.numLabels);
+        
         % iterate variables in the seed's group
         for j = 1 : numel(vg(i).vars)
            
@@ -36,7 +48,8 @@ function map = msgmSetInterpolationRule(G, x, vg)
                 % seed variable gets the label
                 % of the coarse representative (Eq. (2))
                 
-                map(vg(i).vars(j),:) = 1 : G.numLabels;
+                map(j,:) = 1 : G.numLabels;
+                mapInterpolation(vg(i).vars(j),:) = 1 : G.numLabels;
                 
             else
                 % find the minimizer (Eq. (3))
@@ -57,9 +70,12 @@ function map = msgmSetInterpolationRule(G, x, vg)
                     map_(x(vg(i).seed)) = x(vg(i).vars(j));
                 end
                 
-                map(vg(i).vars(j),:) = map_;
+                map(j,:) = map_;
+                mapInterpolation(vg(i).vars(j),:) = map_;
             end
         end
+        
+        vg(i).map = map;
     end
 end
 
@@ -79,7 +95,7 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
         for j = 1 : numel(vg(i).vars)
             
             vj = vg(i).vars(j);
-            uGroup = uGroup + G.u(vj, mapInterpolation(vj,:));            
+            uGroup = uGroup + G.u(vj, vg(i).map(j,:));
         end
         
         % sum the pairwise energy, considering the interpolation
@@ -94,7 +110,9 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
             v2 = G.adj(vg(i).edges(j), 2);
             map1 = mapInterpolation(v1,:);
             map2 = mapInterpolation(v2,:);
-            
+%             map1 = vg(i).map(vg(i).vars == v1,:);
+%             map2 = vg(i).map(vg(i).vars == v2,:);
+
             uGroup = uGroup + diag(pairwise(map1, map2))';
         end
         
@@ -118,7 +136,9 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
         v2c = mapFineToCoarse(v2);
         map1 = mapInterpolation(v1,:);
         map2 = mapInterpolation(v2,:);
-        
+%         map1 = vg(v1c).map(vg(v1c).vars == v1,:);
+%         map2 = vg(v2c).map(vg(v2c).vars == v2,:);
+
         % the pairwise term, considering the interpolation
         pairwise = G.p(:,:,iEdge);
         pairwise = pairwise(map1, map2);

@@ -39,8 +39,7 @@ optimization algorithms, which must be downloaded and added to path.
 		
 	  LSA needs to be patched to handle a degenerate case
 	  that may occur when using it within this framework.
-	  Replace the file 'reparamEnergy.m' with ...
-	  TODO: attach patched file
+	  Replace Gorelick's 'reparamEnergy.m' with the version supplied herein.
 
 
 ADDITIONAL NOTES
