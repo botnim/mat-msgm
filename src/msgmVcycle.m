@@ -33,11 +33,6 @@ function x = msgmVcycle(G, x, param)
         return;
     end
 
-
-    % reparameterize the graph
-    % TODO: take out of here!
-    G = msgmReparam(G);
-
     % run inference on the current scale
     % TODO: it may work better if the graph is first processed (read:
     % reparamterized)

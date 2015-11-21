@@ -19,8 +19,6 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
 %                           means that fine-variable indexed by v1 is
 %                           mapped to a coarse-variable indexed by vc
 
-% TODO: for fine-scale, pre-processing (scoring) is not necessary!  
-
     % output data structures
     vg = cell(size(G.u, 1), 1);
     mapFineToCoarse = zeros(size(G.u,1),1);
@@ -32,9 +30,7 @@ function [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, bInitialized)
     % local-conditional-entropy scores
     % vbReverseEdge defines whether the pairwise is stored
     % in G.p as (v1,v2) or as (v2,v1)
-    orderedEdgeList = msgmScoreEdges(G, param, bInitialized);
-    vbReverseEdge = (orderedEdgeList < 0);
-    orderedEdgeList = abs(orderedEdgeList);
+    [orderedEdgeList, vbReverseEdge] = msgmScoreEdges(G, param, bInitialized);
     
     % assign SEED variables and their respective group
     iEdge = 0;

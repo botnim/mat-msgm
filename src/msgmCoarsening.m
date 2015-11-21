@@ -186,5 +186,4 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
     Gc.p = pc;
     Gc.adj = adjc;
     Gc.numLabels = G.numLabels;
-    Gc.bProcessed = false;
 end

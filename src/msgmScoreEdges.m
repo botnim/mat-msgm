@@ -1,4 +1,4 @@
-function vEdgeList = msgmScoreEdges(G, param, bInitialized)
+function [vEdgeList, vbReverseEdge] = msgmScoreEdges(G, param, bInitialized)
 % msgmScpreEdges(G, param, bInitialized) score the edges according to the
 % local conditional entropy criterion
 %
@@ -11,21 +11,21 @@ function vEdgeList = msgmScoreEdges(G, param, bInitialized)
 %                       (v1, v2) by which the edge's pairwise potential is stored                        
 %
 
+    % reparameterization of the energy potentials
+    G = msgmReparam(G);
 
     % normalize the unary potential by the variable's connectivity degree
     vDeg = accumarray(G.adj(:), 1, [size(G.u, 1), 1]);
     u = bsxfun(@rdivide, G.u, vDeg);
 
-    % the local energy
-    % TODO: reference to paper
+    % the local energy (Eq. (8))
     u1(:,1,:) = u(G.adj(:,1),:)';
     u2(1,:,:) = u(G.adj(:,2),:)';
     localEnergy = G.p;
     localEnergy = bsxfun(@plus, localEnergy, u1);
     localEnergy = bsxfun(@plus, localEnergy, u2);
     
-    % from local energy to approximate marginal probabilities
-    % TODO: reference paper
+    % from local energy to approximate marginal probabilities (below Eq. (8))
     localEnergy = bsxfun(@minus, localEnergy, mean(mean(localEnergy,1),2));
     localMarginals = exp(-localEnergy);
     localMarginals = bsxfun(@rdivide, localMarginals, sum(sum(localMarginals,1),2));
@@ -35,25 +35,69 @@ function vEdgeList = msgmScoreEdges(G, param, bInitialized)
     H21 = msgmCondEntropy(localMarginals, 1);	% H(v2|v1), 'regular' direction
     H12 = msgmCondEntropy(localMarginals, 2);	% H(v1|v2), 'reverse' direction   
     Hcond = [H21; H12];
+    vbReverseEdge = cat(1, false(numel(H21), 1), true(numel(H12), 1));
     
-    % bin entropy scores
-    % TODO: reference to paper
     if ((param.numEntropyBins > 0) && bInitialized)
+        % bin entropy scores (Sec. 2.4)
         
-        Hcond = Hcond / log(size(U,2));             % normalizing by maximal entropy
-        Hcond = round(Hcond * gP.numEntropyBins);   % bin the entropy score
-        Hcond = Hcond + 0.5 * rand(size(Hcond));    % add randomness, avoid bin-mixing
-    end
-      
-    M = size(G.p, 3);
-    [~, idx] = sort(Hcond, 'ascend');
-  	idx(idx > M) = -1 * (idx(idx > M) - M);                                                         
-    vEdgeList = idx;
-
+        Hcond = Hcond / log(G.numLabels);               % normalizing by maximal entropy
+        Hcond = round(Hcond * param.numEntropyBins);    % bin the entropy score
+        Hcond = Hcond + 0.5 * rand(size(Hcond));        % add randomness, avoid bin-mixing
+    end  
+    [~, edgeInds] = sort(Hcond, 'ascend');
+  	
+    % output
+    vEdgeList = edgeInds;
+    vbReverseEdge = vbReverseEdge(edgeInds);
+    
+    % reset the indices in vEdgeList(vbReverseEdge)
+    vEdgeList(vbReverseEdge) = (vEdgeList(vbReverseEdge) - size(G.p, 3));                                                         
+    
 end
 
 
-%% Helper
+%% Helpers
+
+function G = msgmReparam(G)
+% msgmReparam(U,E,P) reparameterization of the energy potentials of G.
+% This is necessary as a pre-processing step in the computation of
+% the local conditional entropy score.
+%
+% A pairwise potential 'p12' is rewritten as
+%
+%       p12(x1,x2) = p12_(x1,x2) + u1_(x1) + u2_(x2)    s.t.
+%       sum(p12_(x1,x2).^2) is minimized.
+%
+% The above optimization problem can be solved analytically, up to an
+% additive constant which does not affect our framework.
+% The solution is given by:
+%
+%       u1_(x1) = (1 / numLabels) * sum_x2(p12(x1,x2))
+%
+% The new pairwise becomes p12_, and we add the residuals u1_,u2_
+% to the unary terms of the respective variables v1,v2,
+% i.e. u1 = u1 + u1_, etc.
+
+    % compute edge means u1_,u2_
+    u1_ = mean(G.p, 2);
+    u2_ = mean(G.p, 1);
+
+    % update the pairwise:
+    % p12_(x1,x2) = p12(x1,x2) - u1_(x1) - u2_(x2)
+    G.p = bsxfun(@minus, G.p, u1_);
+    G.p = bsxfun(@minus, G.p, u2_);
+
+    % update the unary term u1 = u1 + u1_
+    % ...for each label separately
+    u1_ = reshape(u1_, G.numLabels, size(G.p, 3))';
+    u2_ = reshape(u2_, G.numLabels, size(G.p, 3))';
+    for i = 1 : G.numLabels
+
+        G.u(:,i) = G.u(:,i) + ...
+            accumarray([G.adj(:,1); G.adj(:,2)], ...
+            [u1_(:,i); u2_(:,i)], [size(G.u, 1), 1]);
+    end
+end
 
 function Hcond = msgmCondEntropy(localMarginals, dim)
 % msgmCondEntropy(localMarginals, dim) compute the local conditional

@@ -46,12 +46,18 @@ function [eMS, tMS, eSS, tSS] = msgmDemo()
         param.optimization = 'LSA';
         param.numSwapIterations = 1;
         param.bSoftInterpolation = false;
+        param.numVcycles = 1;
 
-        % multiscale and single-scale optimization
+        % multiscale
         [~, eMS(i), tMS(i)] = msgm(G, [], param);
-% 
-%         param.numVcycles = 0;
-%         [~, eSS(i), tSS(i)] = msgm(G, [], param);
+
+        % single scale
+        [~, x] = min(G.u, [], 2);
+        G.numLabels = size(G.u, 2);
+        tSS_ = tic;
+        x = msgmOptimizeScale(G, x, param);
+        tSS(i) = toc(tSS_);
+        eSS(i) = msgmEnergy(G, x);
     end
 
 end

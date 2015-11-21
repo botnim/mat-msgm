@@ -13,7 +13,6 @@ function [x, e, t] = msgm(G, x, param)
 %           G.adj   [num edges x 2]                         adjacency relations
 %           G.p     [num labels x num labels x num edges]   pairwise terms
 %           G.numLabels  (for internal use) number of labels
-%           G.bProcessed (for internal use) avoid re-computation of entropy
 %
 %   x   -   an initial labeling assignment to the variables (column vector,
 %           empty if an initial guess is not available)
@@ -30,7 +29,6 @@ function [x, e, t] = msgm(G, x, param)
 
     % initialize internal values
     G.numLabels = size(G.u, 2);
-    G.bProcessed = false;
     
     if (isempty(param))
         % initialize default params
@@ -43,14 +41,6 @@ function [x, e, t] = msgm(G, x, param)
 
         x = msgmVcycle(G, x, param);
     end
-
-    % final relaxation of graph
-    if isempty(x)
-        % provide initial guess
-
-        [~, x] = min(G.u, [], 2);
-    end
-    x = msgmOptimizeScale(G, x, param);
 
     % energy & time
     t = toc(tStart);

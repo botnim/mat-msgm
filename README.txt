@@ -17,9 +17,9 @@ USAGE
 =====
 Set parameters in msgmParams() (can leave default),
 select an optimization method (can replace with your own!),
-and pass a graphical model G (See specs in ...) to msgm(G, ..).
+and pass a graphical model G (see description in msgm()) to msgm().
 
-See 'msgmDemo' for a demo script comparing the performance
+See 'msgmDemo()' for a demo script comparing the performance
 of multiscale and single-scale inference on a square grid with
 random energy potentials.
 
@@ -27,9 +27,11 @@ random energy potentials.
 OPTIMIZATION MODULES
 ====================
 
-The framework can be run without an optimization module (SET: params...),
-or with an external optimization module. Available is a wrapper for two
-optimization algorithms, which must be downloaded and added to path.
+The framework can be run without an optimization module by setting
+(params.optimization = 'NONE'), or with an external optimization module.
+Available is a wrapper for two optimization algorithms, which must be
+downloaded and added to path. QPBO must be wrapped in order to call
+it from Matlab.
 
 	- QPBO, by Vladimir Kolmogorov
 	  http://pub.ist.ac.at/~vnk/software/QPBO-v1.4.src.zip
