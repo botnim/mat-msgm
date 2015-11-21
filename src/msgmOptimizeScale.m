@@ -2,6 +2,7 @@ function x = msgmOptimizeScale(G, x, param)
 % msgmOptimizeScale(G, x, param) single-scale optimization of a graphical
 % model 'G', given an initial guess 'x'
 
+    G = msgmReparam(G);
     if (isempty(x))
         % labels not initialized,
         % currently, move-making methods require initialization
