@@ -42,7 +42,7 @@ function [x, e, t] = msgm(G, x, param)
         x = msgmVcycle(G, x, param);
     end
 
-	% final relaxation of graph
+	% last optimization
     x = msgmOptimizeScale(G, x, param);
 
     % energy & time
