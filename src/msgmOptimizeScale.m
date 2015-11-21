@@ -17,14 +17,8 @@ function x = msgmOptimizeScale(G, x, param)
                     x = msgmQPBO(G, x);
                     
                 case 'LSA'
-%                     x = msgmLSA(G, x, param);
-    % used for LSA-euc mode, for optimizing grids
-                    if (numel(x) == prod(param.imSz))
-
-                        x = reshape(x, param.imSz);
-                    end
-                    x = lsa_tr(G.u, G.adj, G.p, x);
-                    x = x(:);
+                    x = msgmLSA(G, x, param);
+    
             end            
         else
             % model with >2 variables, apply ab-swap move-making method

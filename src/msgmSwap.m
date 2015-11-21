@@ -31,27 +31,26 @@ function xnew = swap(G, x, a, b, param)
     if (any(vb_ab))
         
         % fix labels of variables whose labels is not a,b
-        [Gcond, xcond] = msgmConditionalDist(G, x, ~vb_ab);
+        [Gab, xab] = msgmConditionalDist(G, x, ~vb_ab);
         
         % only (a <--> b) swap move is allowed
-        Gcond.u = Gcond.u(:,[a,b]);
-        Gcond.p = Gcond.p([a,b],[a,b],:);
-        xcond = 1 * (xcond == a) + 2 * (xcond == b);
+        Gab.u = Gab.u(:,[a,b]);
+        Gab.p = Gab.p([a,b],[a,b],:);
+        xab = 1 * (xab == a) + 2 * (xab == b);
         
         % improve a,b initial guess
-        if (strcmp(param.optimization, 'QPBO'))
+        switch (param.optimization)
 
-            % prepare pairwise potentials for QPBO wrapper
+            case 'QPBO'                  
+                xab_opt = msgmQPBO(Gab, xab);
+
+            case 'LSA'
+                xab_opt = msgmLSA(Gab, xab, param);
+        end   
         
-            xab = msgmQPBO(Gcond, xcond);
-        else
-            
-            xab = msgmLSA(Gcond, xcond, param);
-        end
-
-        % insert optimized a,b move (xab) into the initial labeling x
-        xab = a * (xab == 1) + b * (xab == 2);
-        xnew(vb_ab) = xab;
+        % insert optimized a,b move (xab_opt) into the initial labeling x
+        xab_opt = a * (xab_opt == 1) + b * (xab_opt == 2);
+        xnew(vb_ab) = xab_opt;
 
         % assert that energy does not increase
         assert(msgmEnergy(G, xnew) <= msgmEnergy(G, x));

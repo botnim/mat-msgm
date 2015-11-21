@@ -3,14 +3,12 @@ function G = msgmReparam(G)
 % This is necessary as a pre-processing step in the computation of
 % the local conditional entropy score.
 %
-
-%
-% For a pairwise potential 'p12' we re-write the pairwise as:
+% A pairwise potential 'p12' is rewritten as
 %
 %       p12(x1,x2) = p12_(x1,x2) + u1_(x1) + u2_(x2)    s.t.
 %       sum(p12_(x1,x2).^2) is minimized.
 %
-% The above optimization can be solved analytically, up to an
+% The above optimization problem can be solved analytically, up to an
 % additive constant which does not affect our framework.
 % The solution is given by:
 %
@@ -19,7 +17,6 @@ function G = msgmReparam(G)
 % The new pairwise becomes p12_, and we add the residuals u1_,u2_
 % to the unary terms of the respective variables v1,v2,
 % i.e. u1 = u1 + u1_, etc.
-
 
     % compute edge means u1_,u2_
     u1_ = mean(G.p, 2);

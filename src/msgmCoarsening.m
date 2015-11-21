@@ -1,9 +1,9 @@
-function [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, x)
+function [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, param, x)
 % msgmCoarsening(G, x) apply coarsening by variable-grouping
 %
    
     % select a variable-grouping
-    [vg, mapFineToCoarse] = msgmVariableGrouping(G, any(x));
+    [vg, mapFineToCoarse] = msgmVariableGrouping(G, param, any(x));
 
     % set an interpolation rule
     mapInterpolation = msgmSetInterpolationRule(G, x, vg);
@@ -42,7 +42,7 @@ function map = msgmSetInterpolationRule(G, x, vg)
                 % find the minimizer (Eq. (3))
 
                 pairwise = squeeze(G.p(:,:,vg(i).edges(j-1)));
-                if (~vg(i).binv(j-1))
+                if (~vg(i).brev(j-1))
                     % transpose the pairwise s.t. seed is on 2nd dim
 
                     pairwise = pairwise';
@@ -157,7 +157,7 @@ function Gc = msgmSetCoarsePotentials(G, vg, mapFineToCoarse, mapInterpolation)
         end
     end
     
-    % resize to remove reserved space
+    % resize to clear reserved space
     pc(:,:,nEdgeCounter:end) = [];
     adjc(nEdgeCounter:end,:) = [];
     

@@ -1,5 +1,5 @@
 function x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param)
-% msgmInterpolate(xc, mapFineToCoarse, mapInterpoation)
+% msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpoation)
 % given a labeling 'xc' of the coarse scale, interpolate the assignment
 % according to the interpolation rule 'mapInterpolation'
 %
@@ -24,9 +24,7 @@ function x = msgmInterpolate(G, vg, xc, mapFineToCoarse, mapInterpolation, param
         vb([vg.seed]) = true;
         [Gcond, ~] = msgmConditionalDist(G, x, vb);
         
-        % optimize labels of the conditional graph
-        % TODO: numRelax was set to 5 here
-        % TODO: initialize xcond 'winner takes all' MOVE TO RELAX GRAPH! 
+        % optimize labels of the conditional graph 
         [~, xcond] = min(Gcond.u, [], 2);
 		xASSERT = x;
 		xASSERT(~vb) = xcond;

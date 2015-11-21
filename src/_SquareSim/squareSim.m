@@ -15,7 +15,7 @@
 %
 
 GRID_SIZE = 100;    	% 4-connected grid GRID_SIZE by GRID_SIZED
-K = 4;              	% number of labels
+K = 2;              	% number of labels
 numTests = 10;           % number of tests
 
 %
@@ -51,14 +51,13 @@ for i = 1 : numTests
     % msgm
     param = msgmParams;
     param.imSz = [GRID_SIZE, GRID_SIZE];
-    param.optimization = 'LSA';
+    param.optimization = 'QPBO';
     param.numSwapIterations = 1;
     param.bSoftInterpolation = false;
 
     
-    [~, eMS(i), tMS] = msgm(G, [], param);
-    param.optimization = 'QPBO';
-    [~, eBL(i), tBL] = msgm(G, [], param);
+    [~, eMS(i), tMS(i)] = msgm(G, [], param);
+    [~, eBL(i), tBL(i)] = msgm(G, [], param);
     
 end
 

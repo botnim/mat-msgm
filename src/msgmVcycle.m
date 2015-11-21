@@ -1,10 +1,10 @@
 function x = msgmVcycle(G, x, param)
-% msgmVcycle(G, x, param) the recursive construction and optimization of
-% the multiscale hierarchy
+% msgmVcycle(G, x, param) optimization & coarsening followed by
+% interpolation & optimization 
 %
 % input:
 %
-%   G   -   graphical model (see msgm() for full description)
+%   G   -   graphical model (see msgm())
 %
 %   x   -   an initial labeling assignment to the variables (column vector,
 %           empty if an initial guess is not available)
@@ -18,12 +18,12 @@ function x = msgmVcycle(G, x, param)
 %
 
     % check stopping condition
-    % TODO: make sure LSA forground is not messing up
+    % TODO: make sure LSA foreground is not messing up
     if (size(G.u,1) <= param.numMinVars)
         
         if (isempty(x))
             % labels not initialized,
-            % current move-making methods require initialization
+            % currently, move-making methods require initialization
            
             % initialize according to unary term
             [~, x] = min(G.u, [], 2);
@@ -36,8 +36,7 @@ function x = msgmVcycle(G, x, param)
 
     % reparameterize the graph
     % TODO: take out of here!
-    G1 = msgmReparam_orig(G);
-    G2 = msgmReparam(G);
+    G = msgmReparam(G);
 
     % run inference on the current scale
     % TODO: it may work better if the graph is first processed (read:
@@ -48,7 +47,8 @@ function x = msgmVcycle(G, x, param)
     % coarsen the graph
     % TODO: remove vg if compatible relaxations is unecessary,
     %       otherwise, come up with more elegant solution
-    [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, x);
+    % TODO: mapInterpolation in vg(i)
+    [Gc, xc, mapFineToCoarse, mapInterpolation, vg] = msgmCoarsening(G, param, x);
     msgmEnergyAssert(G, x, Gc, xc);
 
 
